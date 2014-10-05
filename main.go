@@ -10,44 +10,43 @@ import (
 )
 
 func hashStr(s string) hash.Hash32 {
-	h := fnv.New32a()
+	h := fnv.New32()
 	h.Write([]byte(s))
 	return h
 }
 
 func hashStr64(s string) hash.Hash64 {
-	h := fnv.New64a()
+	h := fnv.New64()
 	h.Write([]byte(s))
 	return h
 }
 
 func main() {
-	reg := uint8(6)
-	num := 10000000
+	reg := uint8(14)
+	num := 2000000
 	hll2, _ := hyperloglog.New(1 << reg)
 	hll := NewHyperLogLog(reg)
-	hllpp := NewHyperLogLogPP(reg)
+	hllpp := NewHyperLogLogPP(reg, true)
 
 	start := time.Now()
 	for i := 0; i < num; i++ {
-		hll2.Add(hashStr(fmt.Sprintf("ahello", i)).Sum32())
-		hll2.Add(hashStr(fmt.Sprintf("ahello", i)).Sum32())
+		hll2.Add(hashStr(fmt.Sprintf("foaodsf", i)).Sum32())
+		hll2.Add(hashStr(fmt.Sprintf("foaodsf", i)).Sum32())
 	}
 	elapsed := time.Since(start)
 	fmt.Println("Other time elapsed: ", elapsed)
-
 	start = time.Now()
 	for i := 0; i < num; i++ {
-		hll.Add(hashStr(fmt.Sprintf("ahello", i)))
-		hll.Add(hashStr(fmt.Sprintf("ahello", i)))
+		hll.Add(hashStr(fmt.Sprintf("foaodsf", i)))
+		hll.Add(hashStr(fmt.Sprintf("foaodsf", i)))
 	}
 	elapsed = time.Since(start)
 	fmt.Println("Mine time elapsed:  ", elapsed)
 
 	start = time.Now()
 	for i := 0; i < num; i++ {
-		hllpp.Add(hashStr64(fmt.Sprintf("ahello", i)))
-		hllpp.Add(hashStr64(fmt.Sprintf("ahello", i)))
+		hllpp.Add(hashStr64(fmt.Sprintf("foaodsf", i)))
+		hllpp.Add(hashStr64(fmt.Sprintf("foaodsf", i)))
 	}
 	elapsed = time.Since(start)
 	fmt.Println("PP time elapsed:    ", elapsed)

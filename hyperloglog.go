@@ -55,6 +55,7 @@ func clz(x uint32) byte {
 type hyperLogLog struct {
 	bytes []byte
 	m uint32
+	p uint8
 }
 
 func NewHyperLogLog(precision uint8) *hyperLogLog {
@@ -62,6 +63,7 @@ func NewHyperLogLog(precision uint8) *hyperLogLog {
 	if precision > 16 || precision < 4 {
 		panic("precision must be between 4 and 16")
 	}
+	hll.p = precision
 	hll.m = uint32(math.Exp2(float64(precision)))
 	hll.bytes = make([]byte, hll.m)
 	return hll
@@ -70,8 +72,8 @@ func NewHyperLogLog(precision uint8) *hyperLogLog {
 func (hll *hyperLogLog) Add(item hash.Hash32) {
 	x := item.Sum32()
 	mask := hll.m - 1
-	i := x & mask  // {x31,...,x32-p} First precision bits of hash
-	w := x | mask  // {x32-p,...,x0}
+	i := (x >> (32 - hll.p)) & mask  // {x31,...,x32-p} First precision bits of hash
+	w := (x << hll.p) | mask  // {x32-p,...,x0}
 
 	zeroBits := clz(w) + 1
 	if zeroBits > hll.bytes[i] {
@@ -99,9 +101,9 @@ func (hll *hyperLogLog) numZeroes() int {
 	return count
 }
 
-func linearCounting(m uint32, v uint32) uint64 {
+func linearCounting(m uint32, v uint32) float64 {
 	fm := float64(m)
-	return uint64(fm * math.Log(fm / float64(v)))
+	return fm * math.Log(fm / float64(v))
 }
 
 func (hll *hyperLogLog) Estimate() uint64 {
@@ -109,7 +111,7 @@ func (hll *hyperLogLog) Estimate() uint64 {
 	if E <= 2.5 * float64(hll.m) {
 		V := hll.numZeroes()
 		if V != 0 {
-			return linearCounting(hll.m, uint32(V))
+			return uint64(linearCounting(hll.m, uint32(V)))
 		}
 		return uint64(E)
 	} else if E < two32 / 30 {
