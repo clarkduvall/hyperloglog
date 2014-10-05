@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"math"
 	"hash"
 	"sort"
 )
@@ -12,7 +11,8 @@ const mPrime uint32 = 1 << (uint32(pPrime) - 1)
 const mPrimeMask uint32 = mPrime - 1
 
 var threshold = []uint {
-	10, 20, 40, 80, 220, 400, 900, 1800, 3100, 6500, 11500, 20000, 50000, 120000, 350000,
+	10, 20, 40, 80, 220, 400, 900, 1800, 3100,
+	6500, 11500, 20000, 50000, 120000, 350000,
 }
 
 type set map[uint32]bool
@@ -36,7 +36,8 @@ func (hll *hyperLogLogPP) encodeHash(x uint64) uint32 {
 	mask := uint64(mPrimeMask - (hll.m - 1))
 	shifted := uint32(x & uint64(mPrimeMask)) << 7
 	if x & mask == 0 {
-		return shifted | (uint32(countZeroBits(x | uint64(mPrimeMask))) << uint32(1)) | 1
+		zeros := uint32(countZeroBits(x | uint64(mPrimeMask)))
+		return shifted | (zeros << 1) | 1
 	}
 	return shifted
 }
@@ -51,7 +52,7 @@ func (hll *hyperLogLogPP) decodeHash(k uint32) (uint32, byte) {
 	if k & 1 == 1 {
 		r = byte((k & ((1 << 7) - 2)) >> 1) + (pPrime - hll.p)
 	} else {
-		r = clz(k)
+		r = clz(k) + 1
 	}
 	return hll.getIndex(k), r
 }
@@ -102,36 +103,17 @@ func (hll *hyperLogLogPP) merge() {
 	}
 }
 
-func NewHyperLogLogPP(precision byte, sparse bool) *hyperLogLogPP {
+func NewHyperLogLogPP(precision byte) *hyperLogLogPP {
 	hll := new(hyperLogLogPP)
 	if precision > 16 || precision < 4 {
 		panic("precision must be between 4 and 16")
 	}
 	hll.p = precision
-	hll.m = uint32(math.Exp2(float64(precision)))
-	hll.sparse = sparse
-	if sparse {
-		hll.tmp_set = make(set)
-	} else {
-		hll.bytes = make([]byte, hll.m)
-	}
+	hll.m = 1 << uint32(precision)
+	hll.sparse = true
+	hll.tmp_set = make(set)
+	hll.sparse_list = make([]uint32, 0, hll.m >> 2)
 	return hll
-}
-
-func countZeroBits2(num uint32, start uint) byte {
-	count := byte(1)
-	for x := uint32(1 << (start - 1)); (x & num) == 0 && x != 0; x >>= 1 {
-		count++
-	}
-	return count
-}
-
-func countZeroBits(num uint64) byte {
-	count := byte(1)
-	for x := uint64(1 << 63); (x & num) == 0 && x != 0; x >>= 1 {
-		count++
-	}
-	return count
 }
 
 func (hll *hyperLogLogPP) toNormal() {
@@ -152,19 +134,14 @@ func (hll *hyperLogLogPP) Add(item hash.Hash64) {
 		if uint32(len(hll.tmp_set)) * 100 > hll.m * 8 {
 			hll.merge()
 			hll.tmp_set = make(set)
-			if uint32(len(hll.sparse_list)) > hll.m * 8 {
-				fmt.Println("SWITCHING ", hll.Estimate())
+			if uint32(len(hll.sparse_list)) > hll.m >> 2 {
 				hll.sparse = false
 				hll.toNormal()
-				fmt.Println("SWITCHING ", hll.Estimate())
 			}
 		}
 	} else {
-		mask := uint64(hll.m - 1)
-		// i := (x >> (64 - hll.p)) & mask  // {x63,...,x64-p} First precision bits of hash
-		// w := (x << hll.p) | mask  // {x64-p,...,x0}
-		i := x & mask  // {x63,...,x64-p} First precision bits of hash
-		w := x | mask  // {x64-p,...,x0}
+		i := eb64(x, uint(hll.p), 0)            // {x63,...,x64-p}
+		w := eb64(x, 64, uint(hll.p)) << hll.p  // {x64-p,...,x0}
 
 		zeroBits := countZeroBits(w)
 		if zeroBits > hll.bytes[i] {
@@ -174,25 +151,25 @@ func (hll *hyperLogLogPP) Add(item hash.Hash64) {
 }
 
 func (hll *hyperLogLogPP) estimateBias(E float64) float64 {
-	rawEstimate := rawEstimateData[hll.p - 4]
-	bias := biasData[hll.p - 4]
+	estTable := rawEstimateData[hll.p - 4]
+	biasTable := biasData[hll.p - 4]
 
-	if rawEstimate[0] > E {
-		return rawEstimate[0] - bias[0]
+	if estTable[0] > E {
+		return estTable[0] - biasTable[0]
 	}
 
-	lastEstimate := rawEstimate[len(rawEstimate)-1]
+	lastEstimate := estTable[len(estTable)-1]
 	if lastEstimate < E {
-		return lastEstimate - bias[len(bias)-1]
+		return lastEstimate - biasTable[len(biasTable)-1]
 	}
 
 	i := 1
-	for ; i < len(rawEstimate) && rawEstimate[i] < E; i++ {}
+	for ; i < len(estTable) && estTable[i] < E; i++ {}
 
-	e1 := rawEstimate[i - 1]
-	e2 := rawEstimate[i]
-	b1 := bias[i - 1]
-	b2 := bias[i]
+	e1 := estTable[i - 1]
+	e2 := estTable[i]
+	b1 := biasTable[i - 1]
+	b2 := biasTable[i]
 
 	c := (E - e1) / (e2 - e1)
 	return b1 * c + b2 * (1 - c)
@@ -201,7 +178,7 @@ func (hll *hyperLogLogPP) estimateBias(E float64) float64 {
 func (hll *hyperLogLogPP) calculateE() float64 {
 	sum := 0.0
 	for _, val := range hll.bytes {
-		sum += 1.0 / math.Exp2(float64(val))
+		sum += 1.0 / float64(uint32(1) << val)
 	}
 
 	m := float64(hll.m)
@@ -220,27 +197,27 @@ func (hll *hyperLogLogPP) numZeroes() int {
 
 func (hll *hyperLogLogPP) Estimate() uint64 {
 	if hll.sparse {
-		fmt.Println("case 1")
+		fmt.Println("case1")
 		hll.merge()
 		return uint64(linearCounting(mPrime, mPrime - uint32(len(hll.sparse_list))))
 	}
 
 	E := hll.calculateE()
 	if E <= float64(hll.m) * 5.0 {
-		fmt.Println("case 2")
+		fmt.Println("case2")
 		E -= hll.estimateBias(E)
 	}
 	V := hll.numZeroes()
 	H := E
 	if V != 0 {
-		fmt.Println("case 3")
+		fmt.Println("case3")
 		H = linearCounting(hll.m, uint32(V))
 	}
 
 	if H <= float64(threshold[hll.p - 4]) {
-		fmt.Println("case 4")
+		fmt.Println("case4")
 		return uint64(H)
 	}
-	fmt.Println("ret", H)
+	fmt.Println("case5")
 	return uint64(E)
 }
