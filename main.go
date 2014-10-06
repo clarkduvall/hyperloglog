@@ -1,63 +1,68 @@
 package main
 
 import (
+	"math/rand"
+	"math"
 	"fmt"
 	"hash"
 	"hash/fnv"
-	"math"
-	"math/rand"
-	"time"
-	"github.com/eclesh/hyperloglog"
 )
 
-func hashStr(s string) hash.Hash32 {
+func hash32(s string) hash.Hash32 {
 	h := fnv.New32()
 	h.Write([]byte(s))
 	return h
 }
 
-func hashStr64(s string) hash.Hash64 {
+func hash64(s string) hash.Hash64 {
 	h := fnv.New64()
 	h.Write([]byte(s))
 	return h
 }
 
+func randStr(n int64) string {
+	i := rand.Uint32()
+	return fmt.Sprintf("a%s %s", i, n)
+}
+
 func main() {
-	reg := uint8(16)
-	num := 10500
-	hll2, _ := hyperloglog.New(1 << reg)
-	hll, _ := NewHyperLogLog(reg)
-	hllpp, _ := NewHyperLogLogPP(reg)
+	tot_err := 0.0
+	tot_errpp := 0.0
+	runs := 0
 
-	start := time.Now()
-	for i := 0; i < num; i++ {
-		hll2.Add(hashStr(fmt.Sprintf("a", i)).Sum32())
-		hll2.Add(hashStr(fmt.Sprintf("a", i)).Sum32())
-	}
-	elapsed := time.Since(start)
-	fmt.Println("Other time elapsed: ", elapsed)
-	start = time.Now()
-	for i := 0; i < num; i++ {
-		j := rand.Uint32()
-		hll.Add(hashStr(fmt.Sprintf("a%s %s", j, i)))
-		hll.Add(hashStr(fmt.Sprintf("a%s %s", j, i)))
-	}
-	elapsed = time.Since(start)
-	fmt.Println("Mine time elapsed:  ", elapsed)
+	for p := uint8(14); p < 15; p += 2 {
+		h, _ := NewHyperLogLog(p)
+		hpp, _ := NewHyperLogLogPP(p)
 
-	start = time.Now()
-	for i := 0; i < num; i++ {
-		j := rand.Uint32()
-		hllpp.Add(hashStr64(fmt.Sprintf("a%s %s", j, i)))
-		hllpp.Add(hashStr64(fmt.Sprintf("a%s %s", j, i)))
-	}
-	elapsed = time.Since(start)
-	fmt.Println("PP time elapsed:    ", elapsed)
+		for n := int64(1000); n < 20000; n += 100 {
+			for i := int64(0); i < n; i++ {
+				s := randStr(i)
+				h.Add(hash32(s))
+				h.Add(hash32(s))
+				hpp.Add(hash64(s))
+				hpp.Add(hash64(s))
+			}
 
-	reg2 := 1 << reg
-	e := float64(num) * 1.04 / math.Sqrt(float64(reg2))
-	fmt.Printf("Should be between %f and %f\n", float64(num) - e, float64(num) + e)
-	fmt.Printf("Other: %d\n", hll2.Count())
-	fmt.Printf("Mine: %d\n", hll.Estimate())
-	fmt.Printf("PP: %d\n", hllpp.Estimate())
+			e := h.Estimate()
+			epp := hpp.Estimate()
+
+			runs++
+			err := n - int64(e)
+			errpp := n - int64(epp)
+
+			err_perc := math.Abs(float64(err) / float64(n))
+			errpp_perc := math.Abs(float64(errpp) / float64(n))
+			tot_err += err_perc
+			tot_errpp += errpp_perc
+
+			h.Clear()
+			hpp.Clear()
+
+			fmt.Printf("Precision: %d, N: %d\n", p, n)
+			fmt.Printf("  HLL  : %d, Error: %d, %%: %f\n", e, err, err_perc)
+			fmt.Printf("  HLLPP: %d, Error: %d, %%: %f\n\n", epp, errpp, errpp_perc)
+		}
+	}
+	fmt.Printf("HLL Total Err %%  : %f\n", tot_err / float64(runs))
+	fmt.Printf("HLLPP Total Err %%: %f\n", tot_errpp / float64(runs))
 }
