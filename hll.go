@@ -32,7 +32,7 @@ func (h *hyperLogLog) Clear() {
 
 func (h *hyperLogLog) Add(item hash.Hash32) {
 	x := item.Sum32()
-	i := eb32(x, 32, 32 - h.p)        // {x31,...,x32-p}
+	i := eb32(x, 32, 32 - h.p)      // {x31,...,x32-p}
 	w := x << h.p | 1 << (h.p - 1)  // {x32-p,...,x0}
 
 	zeroBits := clz32(w) + 1

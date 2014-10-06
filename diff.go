@@ -1,7 +1,5 @@
 package main
 
-import "fmt"
-
 type iterable interface {
 	Decode(i int, last uint32) (uint32, int)
 	Len() int
@@ -9,9 +7,9 @@ type iterable interface {
 }
 
 type iterator struct {
-	i int
+	i    int
 	last uint32
-	v iterable
+	v    iterable
 }
 
 func (iter *iterator) Next() uint32 {
@@ -21,13 +19,19 @@ func (iter *iterator) Next() uint32 {
 	return n
 }
 
+func (iter *iterator) Peek() uint32 {
+	n, _ := iter.v.Decode(iter.i, iter.last)
+	return n
+}
+
 func (iter iterator) HasNext() bool {
 	return iter.i < iter.v.Len()
 }
 
 type varLenDiff struct {
-	b varLen
-	last uint32
+	count uint32
+	b     varLen
+	last  uint32
 }
 
 func (v *varLenDiff) Len() int {
@@ -40,7 +44,7 @@ func (v *varLenDiff) Decode(i int, last uint32) (uint32, int) {
 }
 
 func (v *varLenDiff) Append(x uint32) {
-	fmt.Println(x - v.last, x, v.last)
+	v.count++
 	v.b = v.b.Append(x - v.last)
 	v.last = x
 }

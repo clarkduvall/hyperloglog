@@ -34,7 +34,7 @@ func main() {
 		h, _ := NewHyperLogLog(p)
 		hpp, _ := NewHyperLogLogPP(p)
 
-		for n := int64(100); n < 101; n += 500 {
+		for n := int64(100); n < 2001; n += 100 {
 			for i := int64(0); i < n; i++ {
 				s := randStr(i)
 				h.Add(hash32(s))

@@ -20,7 +20,7 @@ type hyperLogLogPP struct {
 	m           uint32
 	sparse      bool
 	tmp_set     set
-	sparse_list []uint32
+	sparse_list *varLenDiff
 }
 
 func (h *hyperLogLogPP) encodeHash(x uint64) uint32 {
@@ -57,32 +57,32 @@ func (h *hyperLogLogPP) merge() {
 	}
 	sort.Sort(keys)
 
-	mask := mPrime - 1
-	key_less := func(a uint32, b uint32) bool { return a & mask < b & mask }
-	key_equal := func(a uint32, b uint32) bool { return a & mask == b & mask }
-
-	i := 0
-	for _, k := range keys {
-		for ; i < len(h.sparse_list) && key_less(h.sparse_list[i], k); i++ {}
-
-		if i >= len(h.sparse_list) {
-			h.sparse_list = append(h.sparse_list, k)
+	new_list := NewVarLenDiff(int(h.m))
+	for iter, i := h.sparse_list.Iter(), 0; iter.HasNext() || i < len(keys); {
+		if !iter.HasNext() {
+			new_list.Append(keys[i])
+			i++
 			continue
 		}
 
-		item := h.sparse_list[i]
-		if k > item {
-			if key_equal(k, item) {
-				h.sparse_list[i] = k
-			} else {
-				h.sparse_list = insert(h.sparse_list, i + 1, k)
-			}
-		} else if key_less(k, item) {
-			h.sparse_list = insert(h.sparse_list, i, k)
+		if i >= len(keys) {
+			new_list.Append(iter.Next())
+			continue
 		}
-		i++
+
+		x1, x2 := iter.Peek(), keys[i]
+		if x1 == x2 {
+			new_list.Append(iter.Next())
+			i++
+		} else if x1 > x2 {
+			new_list.Append(x2)
+			i++
+		} else {
+			new_list.Append(iter.Next())
+		}
 	}
 
+	h.sparse_list = new_list
 	h.tmp_set = set{}
 }
 
@@ -96,21 +96,21 @@ func NewHyperLogLogPP(precision uint8) (*hyperLogLogPP, error) {
 	h.m = 1 << precision
 	h.sparse = true
 	h.tmp_set = set{}
-	h.sparse_list = make([]uint32, 0, h.m / 4)
+	h.sparse_list = NewVarLenDiff(int(h.m))
 	return h, nil
 }
 
 func (h *hyperLogLogPP) Clear() {
 	h.sparse = true
 	h.tmp_set = set{}
-	h.sparse_list = make([]uint32, 0, h.m / 4)
+	h.sparse_list = NewVarLenDiff(int(h.m))
 	h.reg = nil
 }
 
 func (h *hyperLogLogPP) toNormal() {
 	h.reg = make([]uint8, h.m)
-	for _, k := range h.sparse_list {
-		i, r := h.decodeHash(k)
+	for iter := h.sparse_list.Iter(); iter.HasNext(); {
+		i, r := h.decodeHash(iter.Next())
 		if h.reg[i] < r {
 			h.reg[i] = r
 		}
@@ -126,12 +126,9 @@ func (h *hyperLogLogPP) Add(item hash.Hash64) {
 	if h.sparse {
 		h.tmp_set.Add(h.encodeHash(x))
 
-		// Hash map takes approximately (4 + 4 + 1) * 2 * 4 * n bytes
-		if uint32(len(h.tmp_set)) * 8 > h.m {
+		if uint32(len(h.tmp_set)) * 100 > h.m {
 			h.merge()
-			// Sparse list takes approximately 4 * n bytes. Add 2 extra to account for
-			// memory use of tmp_set.
-			if uint32(len(h.sparse_list)) * 2 > h.m {
+			if uint32(h.sparse_list.Len()) > h.m {
 				h.toNormal()
 			}
 		}
@@ -171,7 +168,7 @@ func (h *hyperLogLogPP) estimateBias(est float64) float64 {
 func (h *hyperLogLogPP) Estimate() uint64 {
 	if h.sparse {
 		h.merge()
-		return uint64(linearCounting(mPrime, mPrime - uint32(len(h.sparse_list))))
+		return uint64(linearCounting(mPrime, mPrime - uint32(h.sparse_list.count)))
 	}
 
 	est := calculateEstimate(h.reg)

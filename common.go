@@ -88,10 +88,3 @@ func calculateEstimate(s []uint8) float64 {
 	fm := float64(m)
 	return a(m) * fm * fm / sum
 }
-
-func insert(s []uint32, i int, item uint32) []uint32 {
-	s = append(s, 0)
-	copy(s[i+1:], s[i:])
-	s[i] = item
-	return s
-}
