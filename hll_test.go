@@ -1,32 +1,68 @@
 package main
 
-import "testing"
+import (
+	"testing"
+	"fmt"
+)
 
-type test testing.T
+func TestEncodeDecode(t *testing.T) {
+	h, _ := NewHyperLogLogPP(8)
+	i, r := h.decodeHash(h.encodeHash(0xffffff8000000000))
+	if i != 0xff {
+		t.Error(i)
+	}
 
-func assert(t *testing.T, a interface{}, b interface{}) {
-	if a != b {
-		t.Errorf("%s != %s", a, b)
+	if r != 1 {
+		t.Error(r)
+	}
+
+	i, r = h.decodeHash(h.encodeHash(0xff00000000000000))
+	if i != 0xff {
+		t.Error(i)
+	}
+
+	if r != 57 {
+		t.Error(r)
+	}
+
+	i, r = h.decodeHash(h.encodeHash(0xff30000000000000))
+	if i != 0xff {
+		t.Error(i)
+	}
+
+	if r != 3 {
+		t.Error(r)
+	}
+
+	i, r = h.decodeHash(h.encodeHash(0xaa10000000000000))
+	if i != 0xaa {
+		t.Error(i)
+	}
+
+	if r != 4 {
+		t.Error(r)
+	}
+
+	i, r = h.decodeHash(h.encodeHash(0xaa0f000000000000))
+	if i != 0xaa {
+		t.Error(i)
+	}
+
+	if r != 5 {
+		t.Error(r)
 	}
 }
 
-func TestMerge(t *testing.T) {
-	hll := NewHyperLogLogPP(byte(4))
-	hll.tmp_set.Add(5)
-	hll.merge()
-	assert(t, len(hll.sparse_list), 1)
-	assert(t, hll.sparse_list[0], uint32(5))
+func BenchmarkHllpp(b *testing.B) {
+	h, _ := NewHyperLogLogPP(8)
+	for i := 0; i < b.N; i++ {
+		h.Add(hash64(fmt.Sprintf("a", i)))
+	}
+}
 
-	hll.tmp_set.Add(6)
-	hll.merge()
-	assert(t, len(hll.sparse_list), 2)
-	assert(t, hll.sparse_list[0], uint32(5))
-	assert(t, hll.sparse_list[1], uint32(6))
-
-	hll.tmp_set.Add(4)
-	hll.merge()
-	assert(t, len(hll.sparse_list), 3)
-	assert(t, hll.sparse_list[0], uint32(4))
-	assert(t, hll.sparse_list[1], uint32(5))
-	assert(t, hll.sparse_list[2], uint32(6))
+func BenchmarkHll(b *testing.B) {
+	h, _ := NewHyperLogLog(8)
+	for i := 0; i < b.N; i++ {
+		h.Add(hash32(fmt.Sprintf("a", i)))
+	}
 }

@@ -9,20 +9,20 @@ import (
 )
 
 func hash32(s string) hash.Hash32 {
-	h := fnv.New32()
+	h := fnv.New32a()
 	h.Write([]byte(s))
 	return h
 }
 
 func hash64(s string) hash.Hash64 {
-	h := fnv.New64()
+	h := fnv.New64a()
 	h.Write([]byte(s))
 	return h
 }
 
 func randStr(n int64) string {
 	i := rand.Uint32()
-	return fmt.Sprintf("a%s %s", i, n)
+	return fmt.Sprintf("c%s %s", i, n)
 }
 
 func main() {
@@ -34,7 +34,7 @@ func main() {
 		h, _ := NewHyperLogLog(p)
 		hpp, _ := NewHyperLogLogPP(p)
 
-		for n := int64(1000); n < 20000; n += 100 {
+		for n := int64(100); n < 101; n += 500 {
 			for i := int64(0); i < n; i++ {
 				s := randStr(i)
 				h.Add(hash32(s))

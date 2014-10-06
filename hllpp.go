@@ -24,17 +24,20 @@ type hyperLogLogPP struct {
 }
 
 func (h *hyperLogLogPP) encodeHash(x uint64) uint32 {
-	idx := uint32(eb64(x, 64, 64 - pPrime) << 7)
+	idx := uint32(eb64(x, 64, 64 - pPrime))
 
 	if eb64(x, 64 - h.p, 64 - pPrime) == 0 {
 		zeros := clz64((eb64(x, 64 - pPrime, 0) << pPrime) | (1 << pPrime - 1)) + 1
-		return idx | uint32(zeros << 1) | 1
+		return idx << 7 | uint32(zeros << 1) | 1
 	}
-	return idx
+	return idx << 1
 }
 
 func (h *hyperLogLogPP) getIndex(k uint32) uint32 {
-	return eb32(k, 32, 32 - h.p)
+	if k & 1 == 1 {
+		return eb32(k, 32, 32 - h.p)
+	}
+	return eb32(k, pPrime + 1, pPrime - h.p + 1)
 }
 
 func (h *hyperLogLogPP) decodeHash(k uint32) (uint32, uint8) {
@@ -42,7 +45,7 @@ func (h *hyperLogLogPP) decodeHash(k uint32) (uint32, uint8) {
 	if k & 1 == 1 {
 		r = uint8(eb32(k, 7 , 1)) + pPrime - h.p
 	} else {
-		r = clz32(k << h.p) + 1
+		r = clz32(k << (32 - pPrime + h.p - 1)) + 1
 	}
 	return h.getIndex(k), r
 }
@@ -128,7 +131,7 @@ func (h *hyperLogLogPP) Add(item hash.Hash64) {
 			h.merge()
 			// Sparse list takes approximately 4 * n bytes. Add 2 extra to account for
 			// memory use of tmp_set.
-			if uint32(len(h.sparse_list)) * 4 > h.m {
+			if uint32(len(h.sparse_list)) * 2 > h.m {
 				h.toNormal()
 			}
 		}
