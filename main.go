@@ -5,6 +5,7 @@ import (
 	"hash"
 	"hash/fnv"
 	"math"
+	"math/rand"
 	"time"
 	"github.com/eclesh/hyperloglog"
 )
@@ -22,11 +23,11 @@ func hashStr64(s string) hash.Hash64 {
 }
 
 func main() {
-	reg := uint8(14)
-	num := 100000
+	reg := uint8(16)
+	num := 10500
 	hll2, _ := hyperloglog.New(1 << reg)
-	hll := NewHyperLogLog(reg)
-	hllpp := NewHyperLogLogPP(reg)
+	hll, _ := NewHyperLogLog(reg)
+	hllpp, _ := NewHyperLogLogPP(reg)
 
 	start := time.Now()
 	for i := 0; i < num; i++ {
@@ -37,16 +38,18 @@ func main() {
 	fmt.Println("Other time elapsed: ", elapsed)
 	start = time.Now()
 	for i := 0; i < num; i++ {
-		hll.Add(hashStr(fmt.Sprintf("a", i)))
-		hll.Add(hashStr(fmt.Sprintf("a", i)))
+		j := rand.Uint32()
+		hll.Add(hashStr(fmt.Sprintf("a%s %s", j, i)))
+		hll.Add(hashStr(fmt.Sprintf("a%s %s", j, i)))
 	}
 	elapsed = time.Since(start)
 	fmt.Println("Mine time elapsed:  ", elapsed)
 
 	start = time.Now()
 	for i := 0; i < num; i++ {
-		hllpp.Add(hashStr64(fmt.Sprintf("a", i)))
-		hllpp.Add(hashStr64(fmt.Sprintf("a", i)))
+		j := rand.Uint32()
+		hllpp.Add(hashStr64(fmt.Sprintf("a%s %s", j, i)))
+		hllpp.Add(hashStr64(fmt.Sprintf("a%s %s", j, i)))
 	}
 	elapsed = time.Since(start)
 	fmt.Println("PP time elapsed:    ", elapsed)
