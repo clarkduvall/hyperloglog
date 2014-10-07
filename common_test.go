@@ -1,6 +1,9 @@
 package hyperloglog
 
-import "testing"
+import (
+	"math"
+	"testing"
+)
 
 func TestCLZ32(t *testing.T) {
 	n := clz32(0xffffffff)
@@ -30,6 +33,21 @@ func TestCLZ32(t *testing.T) {
 
 	n = clz32(0x80000000)
 	if n != 0 {
+		t.Error(n)
+	}
+
+	n = clz32(0x00100000)
+	if n != 11 {
+		t.Error(n)
+	}
+
+	n = clz32(0x00000100)
+	if n != 23 {
+		t.Error(n)
+	}
+
+	n = clz32(0x00000010)
+	if n != 27 {
 		t.Error(n)
 	}
 }
@@ -209,5 +227,27 @@ func TestCountZeros(t *testing.T) {
 	n = countZeros([]uint8{0, 0, 0, 0, 0, 0})
 	if n != 6 {
 		t.Error(n)
+	}
+}
+
+func TestAlpha(t *testing.T) {
+	v := alpha(16)
+	if v != 0.673 {
+		t.Error(v)
+	}
+
+	v = alpha(32)
+	if v != 0.697 {
+		t.Error(v)
+	}
+
+	v = alpha(64)
+	if v != 0.709 {
+		t.Error(v)
+	}
+
+	v = alpha(128)
+	if math.Abs(v - 0.71527) > 0.00001 {
+		t.Error(v)
 	}
 }

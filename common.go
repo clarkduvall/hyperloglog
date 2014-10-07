@@ -12,7 +12,7 @@ type set map[uint32]bool
 
 func (s set) Add(i uint32) { s[i] = true }
 
-func a(m uint32) float64 {
+func alpha(m uint32) float64 {
 	if m == 16 {
 		return 0.673
 	} else if m == 32 {
@@ -23,7 +23,7 @@ func a(m uint32) float64 {
 	return 0.7213 / (1 + 1.079/float64(m))
 }
 
-var clzLookup = [...]uint8{
+var clzLookup = []uint8{
 	32, 31, 30, 30, 29, 29, 29, 29, 28, 28, 28, 28, 28, 28, 28, 28,
 }
 
@@ -108,5 +108,5 @@ func calculateEstimate(s []uint8) float64 {
 
 	m := uint32(len(s))
 	fm := float64(m)
-	return a(m) * fm * fm / sum
+	return alpha(m) * fm * fm / sum
 }

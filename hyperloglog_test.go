@@ -51,6 +51,49 @@ func TestHLLAdd(t *testing.T) {
 	}
 }
 
+func TestHLLCardinality(t *testing.T) {
+	h, _ := New(16)
+
+	n := h.Count()
+	if n != 0 {
+		t.Error(n)
+	}
+
+	h.Add(fakeHash32(0x00010fff))
+	h.Add(fakeHash32(0x00020fff))
+	h.Add(fakeHash32(0x00030fff))
+	h.Add(fakeHash32(0x00040fff))
+	h.Add(fakeHash32(0x00050fff))
+	h.Add(fakeHash32(0x00050fff))
+
+	n = h.Count()
+	if n != 5 {
+		t.Error(n)
+	}
+}
+
+func TestHLLClear(t *testing.T) {
+	h, _ := New(16)
+	h.Add(fakeHash32(0x00010fff))
+
+	n := h.Count()
+	if n != 1 {
+		t.Error(n)
+	}
+	h.Clear()
+
+	n = h.Count()
+	if n != 0 {
+		t.Error(n)
+	}
+
+	h.Add(fakeHash32(0x00010fff))
+	n = h.Count()
+	if n != 1 {
+		t.Error(n)
+	}
+}
+
 func TestHLLPrecision(t *testing.T) {
 	h, _ := New(4)
 

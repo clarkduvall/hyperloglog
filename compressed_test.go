@@ -35,6 +35,11 @@ func TestVariableLengthList(t *testing.T) {
 
 	iter := l.Iter()
 
+	hn := iter.HasNext()
+	if !hn {
+		t.Error(iter)
+	}
+
 	n := iter.Peek()
 	if n != 106903 {
 		t.Error(n)
@@ -116,5 +121,9 @@ func TestCompressedList(t *testing.T) {
 	n = iter.Next()
 	if n != 0xb0af1000 {
 		t.Error(n)
+	}
+
+	if uint32(l.Len()) >= l.Count * 4 {
+		t.Error(l)
 	}
 }

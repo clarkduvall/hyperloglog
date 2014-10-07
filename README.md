@@ -21,3 +21,9 @@ the original HyperLogLog algorithm. This correction can be seen here, again
 using data generated using this library:
 
 ![N < 80000](80000.png)
+
+## Future Improvements
+- Right now HLL++ uses 8 bits per register. It could use 6 bits and take less
+  memory.
+- The list compression algorithm could be improved, allowing the sparse
+  representation to be used longer.

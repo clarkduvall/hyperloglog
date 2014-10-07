@@ -121,6 +121,49 @@ func TestHLLPPEstimateBias(t *testing.T) {
 	}
 }
 
+func TestHLLPPCardinality(t *testing.T) {
+	h, _ := NewPlus(16)
+
+	n := h.Count()
+	if n != 0 {
+		t.Error(n)
+	}
+
+	h.Add(fakeHash64(0x00010fffffffffff))
+	h.Add(fakeHash64(0x00020fffffffffff))
+	h.Add(fakeHash64(0x00030fffffffffff))
+	h.Add(fakeHash64(0x00040fffffffffff))
+	h.Add(fakeHash64(0x00050fffffffffff))
+	h.Add(fakeHash64(0x00050fffffffffff))
+
+	n = h.Count()
+	if n != 5 {
+		t.Error(n)
+	}
+}
+
+func TestHLLPPClear(t *testing.T) {
+	h, _ := NewPlus(16)
+	h.Add(fakeHash64(0x00010fffffffffff))
+
+	n := h.Count()
+	if n != 1 {
+		t.Error(n)
+	}
+	h.Clear()
+
+	n = h.Count()
+	if n != 0 {
+		t.Error(n)
+	}
+
+	h.Add(fakeHash64(0x00010fffffffffff))
+	n = h.Count()
+	if n != 1 {
+		t.Error(n)
+	}
+}
+
 func TestHLLPPMerge(t *testing.T) {
 	h, _ := NewPlus(16)
 
