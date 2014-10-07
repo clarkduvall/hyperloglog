@@ -27,3 +27,4 @@ using data generated using this library:
   memory.
 - The list compression algorithm could be improved, allowing the sparse
   representation to be used longer.
+- Add Merge() methods for combining two HLLs.
