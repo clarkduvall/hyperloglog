@@ -1,13 +1,15 @@
-package hll
+package hyperloglog
 
 import "math"
 
 type sortableSlice []uint32
+
 func (p sortableSlice) Len() int           { return len(p) }
 func (p sortableSlice) Less(i, j int) bool { return p[i] < p[j] }
 func (p sortableSlice) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
 
 type set map[uint32]bool
+
 func (s set) Add(i uint32) { s[i] = true }
 
 func a(m uint32) float64 {
@@ -18,10 +20,10 @@ func a(m uint32) float64 {
 	} else if m == 64 {
 		return 0.709
 	}
-	return 0.7213 / (1 + 1.079 / float64(m))
+	return 0.7213 / (1 + 1.079/float64(m))
 }
 
-var clzLookup = [...]uint8 {
+var clzLookup = [...]uint8{
 	32, 31, 30, 30, 29, 29, 29, 29, 28, 28, 28, 28, 28, 28, 28, 28,
 }
 
@@ -33,23 +35,39 @@ func clz32(x uint32) uint8 {
 
 	if x >= (1 << 16) {
 		if x >= (1 << 24) {
-			if x >= (1 << 28) { n = 28 } else { n = 24 }
+			if x >= (1 << 28) {
+				n = 28
+			} else {
+				n = 24
+			}
 		} else {
-			if x >= (1 << 20) { n = 20 } else { n = 16 }
+			if x >= (1 << 20) {
+				n = 20
+			} else {
+				n = 16
+			}
 		}
 	} else {
 		if x >= (1 << 8) {
-			if x >= (1 << 12) { n = 12 } else { n = 8 }
+			if x >= (1 << 12) {
+				n = 12
+			} else {
+				n = 8
+			}
 		} else {
-			if x >= (1 << 4) { n = 4 } else { n = 0 }
+			if x >= (1 << 4) {
+				n = 4
+			} else {
+				n = 0
+			}
 		}
 	}
-	return clzLookup[x >> n] - n;
+	return clzLookup[x>>n] - n
 }
 
 func clz64(x uint64) uint8 {
 	var c uint8
-	for m := uint64(1 << 63); m & x == 0 && m != 0; m >>= 1 {
+	for m := uint64(1 << 63); m&x == 0 && m != 0; m >>= 1 {
 		c++
 	}
 	return c
@@ -69,13 +87,15 @@ func eb64(bits uint64, hi uint8, lo uint8) uint64 {
 
 func linearCounting(m uint32, v uint32) float64 {
 	fm := float64(m)
-	return fm * math.Log(fm / float64(v))
+	return fm * math.Log(fm/float64(v))
 }
 
 func countZeros(s []uint8) uint32 {
 	var c uint32
 	for _, v := range s {
-		if v == 0 { c++ }
+		if v == 0 {
+			c++
+		}
 	}
 	return c
 }
@@ -83,7 +103,7 @@ func countZeros(s []uint8) uint32 {
 func calculateEstimate(s []uint8) float64 {
 	sum := 0.0
 	for _, val := range s {
-		sum += 1.0 / float64(uint32(1) << val)
+		sum += 1.0 / float64(uint32(1)<<val)
 	}
 
 	m := uint32(len(s))

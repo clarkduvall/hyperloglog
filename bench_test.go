@@ -1,4 +1,4 @@
-package hll
+package hyperloglog
 
 import (
 	"fmt"
@@ -27,8 +27,8 @@ func randStr(n int) string {
 }
 
 func benchmark(precision uint8, n int) {
-	h, _ := NewHyperLogLog(precision)
-	hpp, _ := NewHyperLogLogPlus(precision)
+	h, _ := New(precision)
+	hpp, _ := NewPlus(precision)
 
 	for i := 0; i < n; i++ {
 		s := randStr(i)
@@ -41,7 +41,7 @@ func benchmark(precision uint8, n int) {
 	e, epp := h.Count(), hpp.Count()
 
 	var percentErr = func(est uint64) float64 {
-		return math.Abs(float64(n) - float64(est)) / float64(n)
+		return math.Abs(float64(n)-float64(est)) / float64(n)
 	}
 
 	fmt.Printf("\nReal Cardinality: %8d\n", n)

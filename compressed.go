@@ -1,4 +1,4 @@
-package hll
+package hyperloglog
 
 type iterable interface {
 	decode(i int, last uint32) (uint32, int)
@@ -71,11 +71,12 @@ func (v *variableLengthList) Iter() *iterator {
 
 func (v variableLengthList) decode(i int, last uint32) (uint32, int) {
 	j := i
-	for ; v[j] & 0x80 != 0 && j < len(v); j++ {}
+	for ; v[j]&0x80 != 0 && j < len(v); j++ {
+	}
 
 	var n uint32
 	for k := j; k >= i; k-- {
-		n |= uint32(v[k] & 0x7f) << uint8(7 * (j - k))
+		n |= uint32(v[k]&0x7f) << uint8(7*(j-k))
 	}
 	return n, j + 1
 }
@@ -83,7 +84,7 @@ func (v variableLengthList) decode(i int, last uint32) (uint32, int) {
 func (v variableLengthList) Append(x uint32) variableLengthList {
 	inserting := false
 	for i := uint8(5); i > 0; i-- {
-		b := eb32(x, i * 7, (i - 1) * 7)
+		b := eb32(x, i*7, (i-1)*7)
 		if inserting || b != 0 {
 			inserting = true
 			if i != 1 {

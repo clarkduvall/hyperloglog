@@ -1,4 +1,4 @@
-package hll
+package hyperloglog
 
 import (
 	"errors"
@@ -9,7 +9,7 @@ import (
 const pPrime uint8 = 25
 const mPrime uint32 = 1 << (uint32(pPrime) - 1)
 
-var threshold = []uint {
+var threshold = []uint{
 	10, 20, 40, 80, 220, 400, 900, 1800, 3100,
 	6500, 11500, 20000, 50000, 120000, 350000,
 }
@@ -23,34 +23,38 @@ type HyperLogLogPlus struct {
 	sparseList *compressedList
 }
 
+// Encode a hash to be used in the sparse representation.
 func (h *HyperLogLogPlus) encodeHash(x uint64) uint32 {
-	idx := uint32(eb64(x, 64, 64 - pPrime))
+	idx := uint32(eb64(x, 64, 64-pPrime))
 
-	if eb64(x, 64 - h.p, 64 - pPrime) == 0 {
-		zeros := clz64((eb64(x, 64 - pPrime, 0) << pPrime) | (1 << pPrime - 1)) + 1
-		return idx << 7 | uint32(zeros << 1) | 1
+	if eb64(x, 64-h.p, 64-pPrime) == 0 {
+		zeros := clz64((eb64(x, 64-pPrime, 0)<<pPrime)|(1<<pPrime-1)) + 1
+		return idx<<7 | uint32(zeros<<1) | 1
 	}
 	return idx << 1
 }
 
+// Get the index of precision p from the sparse representation.
 func (h *HyperLogLogPlus) getIndex(k uint32) uint32 {
-	if k & 1 == 1 {
-		return eb32(k, 32, 32 - h.p)
+	if k&1 == 1 {
+		return eb32(k, 32, 32-h.p)
 	}
-	return eb32(k, pPrime + 1, pPrime - h.p + 1)
+	return eb32(k, pPrime+1, pPrime-h.p+1)
 }
 
+// Decode a hash from the sparse representation.
 func (h *HyperLogLogPlus) decodeHash(k uint32) (uint32, uint8) {
 	var r uint8
-	if k & 1 == 1 {
-		r = uint8(eb32(k, 7 , 1)) + pPrime - h.p
+	if k&1 == 1 {
+		r = uint8(eb32(k, 7, 1)) + pPrime - h.p
 	} else {
-		r = clz32(k << (32 - pPrime + h.p - 1)) + 1
+		r = clz32(k<<(32-pPrime+h.p-1)) + 1
 	}
 	return h.getIndex(k), r
 }
 
-func (h *HyperLogLogPlus) merge() {
+// Merge tmpSet and sparseList in the sparse representation.
+func (h *HyperLogLogPlus) mergeSparse() {
 	keys := make(sortableSlice, 0, len(h.tmpSet))
 	for k := range h.tmpSet {
 		keys = append(keys, k)
@@ -86,7 +90,9 @@ func (h *HyperLogLogPlus) merge() {
 	h.tmpSet = set{}
 }
 
-func NewHyperLogLogPlus(precision uint8) (*HyperLogLogPlus, error) {
+// NewPlus returns a new initialized HyperLogLogPlus that uses the HyperLogLog++
+// algorithm.
+func NewPlus(precision uint8) (*HyperLogLogPlus, error) {
 	if precision > 18 || precision < 4 {
 		return nil, errors.New("precision must be between 4 and 16")
 	}
@@ -100,6 +106,7 @@ func NewHyperLogLogPlus(precision uint8) (*HyperLogLogPlus, error) {
 	return h, nil
 }
 
+// Clear sets HyperLogLogPlus h back to its initial state.
 func (h *HyperLogLogPlus) Clear() {
 	h.sparse = true
 	h.tmpSet = set{}
@@ -107,6 +114,8 @@ func (h *HyperLogLogPlus) Clear() {
 	h.reg = nil
 }
 
+// Converts HyperLogLogPlus h to the normal representation from the sparse
+// representation.
 func (h *HyperLogLogPlus) toNormal() {
 	h.reg = make([]uint8, h.m)
 	for iter := h.sparseList.Iter(); iter.HasNext(); {
@@ -121,20 +130,21 @@ func (h *HyperLogLogPlus) toNormal() {
 	h.sparseList = nil
 }
 
+// Add adds a new item to HyperLogLogPlus h.
 func (h *HyperLogLogPlus) Add(item hash.Hash64) {
 	x := item.Sum64()
 	if h.sparse {
 		h.tmpSet.Add(h.encodeHash(x))
 
-		if uint32(len(h.tmpSet)) * 100 > h.m {
-			h.merge()
+		if uint32(len(h.tmpSet))*100 > h.m {
+			h.mergeSparse()
 			if uint32(h.sparseList.Len()) > h.m {
 				h.toNormal()
 			}
 		}
 	} else {
-		i := eb64(x, 64, 64 - h.p)      // {x63,...,x64-p}
-		w := x << h.p | 1 << (h.p - 1)  // {x63-p,...,x0}
+		i := eb64(x, 64, 64-h.p) // {x63,...,x64-p}
+		w := x<<h.p | 1<<(h.p-1) // {x63-p,...,x0}
 
 		zeroBits := clz64(w) + 1
 		if zeroBits > h.reg[i] {
@@ -143,8 +153,9 @@ func (h *HyperLogLogPlus) Add(item hash.Hash64) {
 	}
 }
 
+// Estimates the bias using empirically determined values.
 func (h *HyperLogLogPlus) estimateBias(est float64) float64 {
-	estTable, biasTable := rawEstimateData[h.p - 4], biasData[h.p - 4]
+	estTable, biasTable := rawEstimateData[h.p-4], biasData[h.p-4]
 
 	if estTable[0] > est {
 		return estTable[0] - biasTable[0]
@@ -156,29 +167,31 @@ func (h *HyperLogLogPlus) estimateBias(est float64) float64 {
 	}
 
 	var i int
-	for i = 0; i < len(estTable) && estTable[i] < est; i++ {}
+	for i = 0; i < len(estTable) && estTable[i] < est; i++ {
+	}
 
-	e1, b1 := estTable[i - 1], biasTable[i - 1]
+	e1, b1 := estTable[i-1], biasTable[i-1]
 	e2, b2 := estTable[i], biasTable[i]
 
 	c := (est - e1) / (e2 - e1)
-	return b1 * (1 - c) + b2 * c
+	return b1*(1-c) + b2*c
 }
 
+// Count returns the cardinality estimate.
 func (h *HyperLogLogPlus) Count() uint64 {
 	if h.sparse {
-		h.merge()
-		return uint64(linearCounting(mPrime, mPrime - uint32(h.sparseList.Count)))
+		h.mergeSparse()
+		return uint64(linearCounting(mPrime, mPrime-uint32(h.sparseList.Count)))
 	}
 
 	est := calculateEstimate(h.reg)
-	if est <= float64(h.m) * 5.0 {
+	if est <= float64(h.m)*5.0 {
 		est -= h.estimateBias(est)
 	}
 
 	if v := countZeros(h.reg); v != 0 {
 		lc := linearCounting(h.m, v)
-		if lc <= float64(threshold[h.p - 4]) {
+		if lc <= float64(threshold[h.p-4]) {
 			return uint64(lc)
 		}
 	}
