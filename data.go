@@ -1,4 +1,4 @@
-package main
+package hll
 
 var rawEstimateData = [][]float64 {
 	// precision 4

@@ -1,7 +1,7 @@
-package main
+package hll
 
 type iterable interface {
-	Decode(i int, last uint32) (uint32, int)
+	decode(i int, last uint32) (uint32, int)
 	Len() int
 	Iter() *iterator
 }
@@ -13,14 +13,14 @@ type iterator struct {
 }
 
 func (iter *iterator) Next() uint32 {
-	n, i := iter.v.Decode(iter.i, iter.last)
+	n, i := iter.v.decode(iter.i, iter.last)
 	iter.last = n
 	iter.i = i
 	return n
 }
 
 func (iter *iterator) Peek() uint32 {
-	n, _ := iter.v.Decode(iter.i, iter.last)
+	n, _ := iter.v.decode(iter.i, iter.last)
 	return n
 }
 
@@ -28,48 +28,48 @@ func (iter iterator) HasNext() bool {
 	return iter.i < iter.v.Len()
 }
 
-type varLenDiff struct {
-	count uint32
-	b     varLen
+type compressedList struct {
+	Count uint32
+	b     variableLengthList
 	last  uint32
 }
 
-func (v *varLenDiff) Len() int {
+func newCompressedList(size int) *compressedList {
+	v := &compressedList{}
+	v.b = make(variableLengthList, 0, size)
+	return v
+}
+
+func (v *compressedList) Len() int {
 	return len(v.b)
 }
 
-func (v *varLenDiff) Decode(i int, last uint32) (uint32, int) {
-	n, i := v.b.Decode(i, last)
+func (v *compressedList) decode(i int, last uint32) (uint32, int) {
+	n, i := v.b.decode(i, last)
 	return n + last, i
 }
 
-func (v *varLenDiff) Append(x uint32) {
-	v.count++
+func (v *compressedList) Append(x uint32) {
+	v.Count++
 	v.b = v.b.Append(x - v.last)
 	v.last = x
 }
 
-func (v *varLenDiff) Iter() *iterator {
+func (v *compressedList) Iter() *iterator {
 	return &iterator{0, 0, v}
 }
 
-func NewVarLenDiff(size int) *varLenDiff {
-	v := new(varLenDiff)
-	v.b = make(varLen, 0, size)
-	return v
-}
+type variableLengthList []uint8
 
-type varLen []uint8
-
-func (v varLen) Len() int {
+func (v variableLengthList) Len() int {
 	return len(v)
 }
 
-func (v *varLen) Iter() *iterator {
+func (v *variableLengthList) Iter() *iterator {
 	return &iterator{0, 0, v}
 }
 
-func (v varLen) Decode(i int, last uint32) (uint32, int) {
+func (v variableLengthList) decode(i int, last uint32) (uint32, int) {
 	j := i
 	for ; v[j] & 0x80 != 0 && j < len(v); j++ {}
 
@@ -80,7 +80,7 @@ func (v varLen) Decode(i int, last uint32) (uint32, int) {
 	return n, j + 1
 }
 
-func (v varLen) Append(x uint32) varLen {
+func (v variableLengthList) Append(x uint32) variableLengthList {
 	inserting := false
 	for i := uint8(5); i > 0; i-- {
 		b := eb32(x, i * 7, (i - 1) * 7)

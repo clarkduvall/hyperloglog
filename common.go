@@ -1,4 +1,4 @@
-package main
+package hll
 
 import "math"
 
@@ -25,7 +25,9 @@ var clzLookup = [...]uint8 {
 	32, 31, 30, 30, 29, 29, 29, 29, 28, 28, 28, 28, 28, 28, 28, 28,
 }
 
-// http://embeddedgurus.com/state-space/2014/09/fast-deterministic-and-portable-counting-leading-zeros/
+// This optimized clz32 algorithm is from:
+// 	 http://embeddedgurus.com/state-space/2014/09/
+// 	 		fast-deterministic-and-portable-counting-leading-zeros/
 func clz32(x uint32) uint8 {
 	var n uint8
 

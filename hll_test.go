@@ -1,68 +1,63 @@
-package main
+package hll
 
-import (
-	"testing"
-	"fmt"
-)
+import "testing"
 
-func TestEncodeDecode(t *testing.T) {
-	h, _ := NewHyperLogLogPP(8)
-	i, r := h.decodeHash(h.encodeHash(0xffffff8000000000))
-	if i != 0xff {
-		t.Error(i)
-	}
+type fakeHash32 uint32
+func (f fakeHash32) Write(p []byte) (n int, err error) { return 0, nil }
+func (f fakeHash32) Sum(b []byte) []byte { return b }
+func (f fakeHash32) Reset() {}
+func (f fakeHash32) BlockSize() int { return 1 }
+func (f fakeHash32) Size() int { return 1 }
+func (f fakeHash32) Sum32() uint32 { return uint32(f) }
 
-	if r != 1 {
-		t.Error(r)
-	}
+func TestHLLAdd(t *testing.T) {
+	h, _ := NewHyperLogLog(16)
 
-	i, r = h.decodeHash(h.encodeHash(0xff00000000000000))
-	if i != 0xff {
-		t.Error(i)
-	}
+	h.Add(fakeHash32(0x00010fff))
+	n := h.reg[1]
+	if n != 5 { t.Error(n) }
 
-	if r != 57 {
-		t.Error(r)
-	}
+	h.Add(fakeHash32(0x0002ffff))
+	n = h.reg[2]
+	if n != 1 { t.Error(n) }
 
-	i, r = h.decodeHash(h.encodeHash(0xff30000000000000))
-	if i != 0xff {
-		t.Error(i)
-	}
+	h.Add(fakeHash32(0x00030000))
+	n = h.reg[3]
+	if n != 17 { t.Error(n) }
 
-	if r != 3 {
-		t.Error(r)
-	}
+	h.Add(fakeHash32(0x00030001))
+	n = h.reg[3]
+	if n != 17 { t.Error(n) }
 
-	i, r = h.decodeHash(h.encodeHash(0xaa10000000000000))
-	if i != 0xaa {
-		t.Error(i)
-	}
+	h.Add(fakeHash32(0xff037000))
+	n = h.reg[0xff03]
+	if n != 2 { t.Error(n) }
 
-	if r != 4 {
-		t.Error(r)
-	}
-
-	i, r = h.decodeHash(h.encodeHash(0xaa0f000000000000))
-	if i != 0xaa {
-		t.Error(i)
-	}
-
-	if r != 5 {
-		t.Error(r)
-	}
+	h.Add(fakeHash32(0xff030800))
+	n = h.reg[0xff03]
+	if n != 5 { t.Error(n) }
 }
 
-func BenchmarkHllpp(b *testing.B) {
-	h, _ := NewHyperLogLogPP(8)
-	for i := 0; i < b.N; i++ {
-		h.Add(hash64(fmt.Sprintf("a", i)))
-	}
+func TestHLLPrecision(t *testing.T) {
+	h, _ := NewHyperLogLog(4)
+
+	h.Add(fakeHash32(0x1fffffff))
+	n := h.reg[1]
+	if n != 1 { t.Error(n) }
+
+	h.Add(fakeHash32(0xffffffff))
+	n = h.reg[0xf]
+	if n != 1 { t.Error(n) }
+
+	h.Add(fakeHash32(0x00ffffff))
+	n = h.reg[0]
+	if n != 5 { t.Error(n) }
 }
 
-func BenchmarkHll(b *testing.B) {
-	h, _ := NewHyperLogLog(8)
-	for i := 0; i < b.N; i++ {
-		h.Add(hash32(fmt.Sprintf("a", i)))
-	}
+func TestHLLError(t *testing.T) {
+	_, err := NewHyperLogLog(3)
+	if err == nil { t.Error("precision 3 should return error")}
+
+	_, err = NewHyperLogLog(17)
+	if err == nil { t.Error("precision 17 should return error")}
 }
