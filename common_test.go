@@ -247,7 +247,7 @@ func TestAlpha(t *testing.T) {
 	}
 
 	v = alpha(128)
-	if math.Abs(v - 0.71527) > 0.00001 {
+	if math.Abs(v-0.71527) > 0.00001 {
 		t.Error(v)
 	}
 }

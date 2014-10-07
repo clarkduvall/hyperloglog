@@ -1,7 +1,8 @@
-// Package hyperloglog implements the HyperLogLog and HyperLogLog++ algorithms.
+// Package hyperloglog implements the HyperLogLog and HyperLogLog++ cardinality
+// estimation algorithms.
 // These algorithms are used for accurately estimating the cardinality of a
-// multiset. HyperLogLog++ has multiple improvements over HyperLogLog, with a
-// much lower error rate for smaller cardinalities.
+// multiset using constant memory. HyperLogLog++ has multiple improvements over
+// HyperLogLog, with a much lower error rate for smaller cardinalities.
 //
 // HyperLogLog is described here:
 // http://algo.inria.fr/flajolet/Publications/FlFuGaMe07.pdf

@@ -123,7 +123,7 @@ func TestCompressedList(t *testing.T) {
 		t.Error(n)
 	}
 
-	if uint32(l.Len()) >= l.Count * 4 {
+	if uint32(l.Len()) >= l.Count*4 {
 		t.Error(l)
 	}
 }
