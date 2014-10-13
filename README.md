@@ -1,4 +1,4 @@
-[![Build Status](https://travis-ci.org/clarkduvall/hyperloglog.svg?branch=master)](https://travis-ci.org/clarkduvall/hyperloglog) [![Coverage Status](https://coveralls.io/repos/clarkduvall/hyperloglog/badge.png?branch=master)](https://coveralls.io/r/clarkduvall/hyperloglog?branch=master)
+[![Build Status](https://travis-ci.org/clarkduvall/hyperloglog.svg?branch=master)](https://travis-ci.org/clarkduvall/hyperloglog) [![Coverage Status](https://img.shields.io/coveralls/clarkduvall/hyperloglog.svg)](https://coveralls.io/r/clarkduvall/hyperloglog?branch=master) [![GoDoc](https://godoc.org/github.com/clarkduvall/hyperloglog?status.svg)](http://godoc.org/github.com/clarkduvall/hyperloglog)
 # HyperLogLog and HyperLogLog++
 Implements the HyperLogLog and HyperLogLog++ algorithms.
 
