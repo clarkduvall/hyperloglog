@@ -6,8 +6,8 @@ import (
 	"sort"
 )
 
-const pPrime uint8 = 25
-const mPrime uint32 = 1 << (uint32(pPrime) - 1)
+const pPrime = 25
+const mPrime = 1 << (pPrime - 1)
 
 var threshold = []uint{
 	10, 20, 40, 80, 220, 400, 900, 1800, 3100,
@@ -117,6 +117,10 @@ func (h *HyperLogLogPlus) Clear() {
 // Converts HyperLogLogPlus h to the normal representation from the sparse
 // representation.
 func (h *HyperLogLogPlus) toNormal() {
+	if len(h.tmpSet) > 0 {
+		h.mergeSparse()
+	}
+
 	h.reg = make([]uint8, h.m)
 	for iter := h.sparseList.Iter(); iter.HasNext(); {
 		i, r := h.decodeHash(iter.Next())
@@ -151,6 +155,42 @@ func (h *HyperLogLogPlus) Add(item hash.Hash64) {
 			h.reg[i] = zeroBits
 		}
 	}
+}
+
+// Merge takes another HyperLogLogPlus and combines it with HyperLogLogPlus h.
+// If HyperLogLogPlus h is using the sparse representation, it will be converted
+// to the normal representation.
+func (h *HyperLogLogPlus) Merge(other *HyperLogLogPlus) error {
+	if h.p != other.p {
+		return errors.New("precisions must be equal")
+	}
+
+	if h.sparse {
+		h.toNormal()
+	}
+
+	if other.sparse {
+		for k := range other.tmpSet {
+			i, r := other.decodeHash(k)
+			if h.reg[i] < r {
+				h.reg[i] = r
+			}
+		}
+
+		for iter := other.sparseList.Iter(); iter.HasNext(); {
+			i, r := other.decodeHash(iter.Next())
+			if h.reg[i] < r {
+				h.reg[i] = r
+			}
+		}
+	} else {
+		for i, v := range other.reg {
+			if v > h.reg[i] {
+				h.reg[i] = v
+			}
+		}
+	}
+	return nil
 }
 
 // Estimates the bias using empirically determined values.

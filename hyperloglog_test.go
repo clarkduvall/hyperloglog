@@ -51,7 +51,7 @@ func TestHLLAdd(t *testing.T) {
 	}
 }
 
-func TestHLLCardinality(t *testing.T) {
+func TestHLLCount(t *testing.T) {
 	h, _ := New(16)
 
 	n := h.Count()
@@ -68,6 +68,56 @@ func TestHLLCardinality(t *testing.T) {
 
 	n = h.Count()
 	if n != 5 {
+		t.Error(n)
+	}
+}
+
+func TestHLLMergeError(t *testing.T) {
+	h, _ := New(16)
+	h2, _ := New(10)
+
+	err := h.Merge(h2)
+	if err == nil {
+		t.Error("different precision should return error")
+	}
+}
+
+func TestHLLMerge(t *testing.T) {
+	h, _ := New(16)
+	h.Add(fakeHash32(0x00010fff))
+	h.Add(fakeHash32(0x00020fff))
+	h.Add(fakeHash32(0x00030fff))
+	h.Add(fakeHash32(0x00040fff))
+	h.Add(fakeHash32(0x00050fff))
+	h.Add(fakeHash32(0x00050fff))
+
+	h2, _ := New(16)
+	h2.Merge(h)
+	n := h2.Count()
+	if n != 5 {
+		t.Error(n)
+	}
+
+	h2.Merge(h)
+	n = h2.Count()
+	if n != 5 {
+		t.Error(n)
+	}
+
+	h.Add(fakeHash32(0x00060fff))
+	h.Add(fakeHash32(0x00070fff))
+	h.Add(fakeHash32(0x00080fff))
+	h.Add(fakeHash32(0x00090fff))
+	h.Add(fakeHash32(0x000a0fff))
+	h.Add(fakeHash32(0x000a0fff))
+	n = h.Count()
+	if n != 10 {
+		t.Error(n)
+	}
+
+	h2.Merge(h)
+	n = h2.Count()
+	if n != 10 {
 		t.Error(n)
 	}
 }

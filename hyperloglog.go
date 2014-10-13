@@ -17,7 +17,7 @@ import (
 	"math"
 )
 
-var two32 float64 = 1 << 32
+const two32 = 1 << 32
 
 type HyperLogLog struct {
 	reg []uint8
@@ -53,6 +53,20 @@ func (h *HyperLogLog) Add(item hash.Hash32) {
 	if zeroBits > h.reg[i] {
 		h.reg[i] = zeroBits
 	}
+}
+
+// Merge takes another HyperLogLog and combines it with HyperLogLog h.
+func (h *HyperLogLog) Merge(other *HyperLogLog) error {
+	if h.p != other.p {
+		return errors.New("precisions must be equal")
+	}
+
+	for i, v := range other.reg {
+		if v > h.reg[i] {
+			h.reg[i] = v
+		}
+	}
+	return nil
 }
 
 // Count returns the cardinality estimate.
