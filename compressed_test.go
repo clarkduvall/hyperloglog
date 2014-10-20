@@ -10,7 +10,7 @@ func TestVariableLengthList(t *testing.T) {
 
 	l = l.Append(106903)
 
-	l2 := []uint8{134, 195, 23}
+	l2 := []uint8{151, 195, 6}
 	if bytes.Compare(l, l2) != 0 {
 		t.Error(l)
 	}
@@ -22,13 +22,13 @@ func TestVariableLengthList(t *testing.T) {
 	}
 
 	l = l.Append(0xff)
-	l2 = append(l2, 0x81, 0x7f)
+	l2 = append(l2, 0xff, 0x01)
 	if bytes.Compare(l, l2) != 0 {
 		t.Error(l)
 	}
 
 	l = l.Append(0xffffffff)
-	l2 = append(l2, 0x8f, 0xff, 0xff, 0xff, 0x7f)
+	l2 = append(l2, 0xff, 0xff, 0xff, 0xff, 0x0f)
 	if bytes.Compare(l, l2) != 0 {
 		t.Error(l)
 	}

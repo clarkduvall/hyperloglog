@@ -70,28 +70,19 @@ func (v *variableLengthList) Iter() *iterator {
 }
 
 func (v variableLengthList) decode(i int, last uint32) (uint32, int) {
+	var x uint32
 	j := i
-	for ; v[j]&0x80 != 0 && j < len(v); j++ {
+	for ; v[j] & 0x80 != 0; j++ {
+		x |= uint32(v[j] & 0x7f) << (uint(j - i) * 7)
 	}
-
-	var n uint32
-	for k := j; k >= i; k-- {
-		n |= uint32(v[k]&0x7f) << uint8(7*(j-k))
-	}
-	return n, j + 1
+	x |= uint32(v[j]) << (uint(j - i) * 7)
+	return x, j + 1
 }
 
 func (v variableLengthList) Append(x uint32) variableLengthList {
-	inserting := false
-	for i := uint8(5); i > 0; i-- {
-		b := eb32(x, i*7, (i-1)*7)
-		if inserting || b != 0 {
-			inserting = true
-			if i != 1 {
-				b |= 0x80
-			}
-			v = append(v, uint8(b))
-		}
+	for x & 0xffffff80 != 0 {
+		v = append(v, uint8((x & 0x7f) | 0x80))
+		x >>= 7
 	}
-	return v
+	return append(v, uint8(x & 0x7f))
 }
