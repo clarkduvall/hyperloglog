@@ -4,12 +4,7 @@ import "testing"
 
 type fakeHash32 uint32
 
-func (f fakeHash32) Write(p []byte) (n int, err error) { return 0, nil }
-func (f fakeHash32) Sum(b []byte) []byte               { return b }
-func (f fakeHash32) Reset()                            {}
-func (f fakeHash32) BlockSize() int                    { return 1 }
-func (f fakeHash32) Size() int                         { return 1 }
-func (f fakeHash32) Sum32() uint32                     { return uint32(f) }
+func (f fakeHash32) Sum32() uint32 { return uint32(f) }
 
 func TestHLLAdd(t *testing.T) {
 	h, _ := New(16)
