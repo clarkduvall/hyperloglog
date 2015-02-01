@@ -80,5 +80,5 @@ func (h *HyperLogLog) Count() uint64 {
 	} else if est < two32/30 {
 		return uint64(est)
 	}
-	return -uint64(two32 * math.Log(1-est/two32))
+	return uint64(-two32 * math.Log(1-est/two32))
 }
