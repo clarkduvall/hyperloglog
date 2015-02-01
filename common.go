@@ -2,6 +2,14 @@ package hyperloglog
 
 import "math"
 
+type Hash32 interface {
+	Sum32() uint32
+}
+
+type Hash64 interface {
+	Sum64() uint64
+}
+
 type sortableSlice []uint32
 
 func (p sortableSlice) Len() int           { return len(p) }

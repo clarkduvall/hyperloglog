@@ -7,12 +7,7 @@ import (
 
 type fakeHash64 uint64
 
-func (f fakeHash64) Write(p []byte) (n int, err error) { return 0, nil }
-func (f fakeHash64) Sum(b []byte) []byte               { return b }
-func (f fakeHash64) Reset()                            {}
-func (f fakeHash64) BlockSize() int                    { return 1 }
-func (f fakeHash64) Size() int                         { return 1 }
-func (f fakeHash64) Sum64() uint64                     { return uint64(f) }
+func (f fakeHash64) Sum64() uint64 { return uint64(f) }
 
 func TestHLLPPAddNoSparse(t *testing.T) {
 	h, _ := NewPlus(16)

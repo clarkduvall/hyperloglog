@@ -2,7 +2,6 @@ package hyperloglog
 
 import (
 	"errors"
-	"hash"
 	"sort"
 )
 
@@ -135,7 +134,7 @@ func (h *HyperLogLogPlus) toNormal() {
 }
 
 // Add adds a new item to HyperLogLogPlus h.
-func (h *HyperLogLogPlus) Add(item hash.Hash64) {
+func (h *HyperLogLogPlus) Add(item Hash64) {
 	x := item.Sum64()
 	if h.sparse {
 		h.tmpSet.Add(h.encodeHash(x))

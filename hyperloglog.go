@@ -13,7 +13,6 @@ package hyperloglog
 
 import (
 	"errors"
-	"hash"
 	"math"
 )
 
@@ -44,7 +43,7 @@ func (h *HyperLogLog) Clear() {
 }
 
 // Add adds a new item to HyperLogLog h.
-func (h *HyperLogLog) Add(item hash.Hash32) {
+func (h *HyperLogLog) Add(item Hash32) {
 	x := item.Sum32()
 	i := eb32(x, 32, 32-h.p) // {x31,...,x32-p}
 	w := x<<h.p | 1<<(h.p-1) // {x32-p,...,x0}
