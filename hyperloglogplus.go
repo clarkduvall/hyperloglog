@@ -93,7 +93,7 @@ func (h *HyperLogLogPlus) mergeSparse() {
 // algorithm.
 func NewPlus(precision uint8) (*HyperLogLogPlus, error) {
 	if precision > 18 || precision < 4 {
-		return nil, errors.New("precision must be between 4 and 16")
+		return nil, errors.New("precision must be between 4 and 18")
 	}
 
 	h := &HyperLogLogPlus{}
