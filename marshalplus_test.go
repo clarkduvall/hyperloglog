@@ -25,6 +25,14 @@ func realHash64(n int64) fakeHash64 {
 	return fakeHash64(binary.BigEndian.Uint64(checksum[:]))
 }
 
+func mustMarshal(h *HyperLogLogPlus) []byte {
+	marshaled, err := h.Marshal()
+	if err != nil {
+		panic(err)
+	}
+	return marshaled
+}
+
 func hllpEqual(h1, h2 HyperLogLogPlus) bool {
 	h1Sparse := h1.sparseList
 	h1.sparseList = nil
@@ -48,7 +56,7 @@ func hllpEqual(h1, h2 HyperLogLogPlus) bool {
 }
 
 func marshalUnmarshal(h *HyperLogLogPlus) error {
-	unmarshaled, err := UnmarshalPlus(h.Marshal())
+	unmarshaled, err := UnmarshalPlus(mustMarshal(h))
 	if err != nil {
 		panic(err)
 	}
@@ -109,7 +117,7 @@ func TestMarshalDense(t *testing.T) {
 		t.Error("expecting dense")
 	}
 
-	if len(h.Marshal()) >= 5*len(h.reg)/8 {
+	if len(mustMarshal(h)) >= 5*len(h.reg)/8 {
 		t.Error("Expected to compress below 5 bits to the byte")
 	}
 
@@ -135,7 +143,7 @@ func TestMarshalDense(t *testing.T) {
 		break
 	}
 
-	if len(h.Marshal()) >= 6*len(h.reg)/8 {
+	if len(mustMarshal(h)) >= 6*len(h.reg)/8 {
 		t.Error("Expected to compress below 6 bits to the byte")
 	}
 
@@ -177,7 +185,7 @@ func TestUnmarshalErrors(t *testing.T) {
 	for i := 0; i < 10000; i++ {
 		h.Add(realHash64(rand.Int63()))
 	}
-	uh, err = UnmarshalPlus(h.Marshal()[0:100])
+	uh, err = UnmarshalPlus(mustMarshal(h)[0:100])
 	if uh != nil || err == nil {
 		t.Error("Expected nil hll and some error")
 	}

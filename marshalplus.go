@@ -3,6 +3,8 @@ package hyperloglog
 import (
 	"encoding/binary"
 	"fmt"
+
+	"code.google.com/p/snappy-go/snappy"
 )
 
 // Marshal HyperLogLogPlus to and from []byte to make it easy to persist
@@ -37,7 +39,7 @@ const (
 // Marshal serializes h into a byte slice that can be deserialized via
 // UnmarshalPlus. Marshal is optimized to produce compact serializations
 // when possible.
-func (h *HyperLogLogPlus) Marshal() []byte {
+func (h *HyperLogLogPlus) Marshal() ([]byte, error) {
 	bufSize := marshalHeaderSize
 
 	var (
@@ -47,7 +49,7 @@ func (h *HyperLogLogPlus) Marshal() []byte {
 
 	if h.sparse {
 		h.mergeSparse()
-		bufSize += 4 + 4 + len(h.sparseList.b)
+		bufSize += 4 + 4 + snappy.MaxEncodedLen(len(h.sparseList.b))
 		flags |= marshalFlagSparse
 	} else {
 		// one byte to store regSize
@@ -85,7 +87,7 @@ func (h *HyperLogLogPlus) Marshal() []byte {
 	binary.BigEndian.PutUint16(buf[offset:], marshalVersion)
 	offset += 2
 
-	binary.BigEndian.PutUint16(buf[offset:], uint16(len(buf)))
+	// save room for length
 	offset += 2
 
 	binary.BigEndian.PutUint16(buf[offset:], flags)
@@ -105,7 +107,12 @@ func (h *HyperLogLogPlus) Marshal() []byte {
 		binary.BigEndian.PutUint32(buf[offset:], h.sparseList.last)
 		offset += 4
 
-		copy(buf[offset:], h.sparseList.b)
+		dst, err := snappy.Encode(buf[offset:], h.sparseList.b)
+		if err != nil {
+			return nil, err
+		}
+
+		buf = buf[0 : offset+len(dst)]
 	} else {
 
 		buf[offset] = regSize
@@ -145,7 +152,10 @@ func (h *HyperLogLogPlus) Marshal() []byte {
 		}
 	}
 
-	return buf
+	// put length in
+	binary.BigEndian.PutUint16(buf[2:], uint16(len(buf)))
+
+	return buf, nil
 }
 
 // UnmarshalPlus deserializes the result of Marshal back into a HyperLogLogPlus
@@ -197,8 +207,16 @@ func UnmarshalPlus(data []byte) (*HyperLogLogPlus, error) {
 		h.sparseList.last = binary.BigEndian.Uint32(data[offset:])
 		offset += 4
 
-		h.sparseList.b = h.sparseList.b[:len(data)-offset]
-		copy(h.sparseList.b, data[offset:])
+		sparseLen, err := snappy.DecodedLen(data[offset:])
+		if err != nil {
+			return nil, err
+		}
+
+		h.sparseList.b = h.sparseList.b[:sparseLen]
+		_, err = snappy.Decode(h.sparseList.b, data[offset:])
+		if err != nil {
+			return nil, err
+		}
 	} else {
 		regSize := data[offset]
 		offset++
