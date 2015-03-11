@@ -54,6 +54,10 @@ func (h *HyperLogLogPlus) decodeHash(k uint32) (uint32, uint8) {
 
 // Merge tmpSet and sparseList in the sparse representation.
 func (h *HyperLogLogPlus) mergeSparse() {
+	if len(h.tmpSet) == 0 {
+		return
+	}
+
 	keys := make(sortableSlice, 0, len(h.tmpSet))
 	for k := range h.tmpSet {
 		keys = append(keys, k)
