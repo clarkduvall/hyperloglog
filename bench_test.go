@@ -10,13 +10,13 @@ import (
 )
 
 func hash32(s string) hash.Hash32 {
-	h := fnv.New32()
+	h := fnv.New32a()
 	h.Write([]byte(s))
 	return h
 }
 
 func hash64(s string) hash.Hash64 {
-	h := fnv.New64()
+	h := fnv.New64a()
 	h.Write([]byte(s))
 	return h
 }
