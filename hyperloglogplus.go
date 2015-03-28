@@ -1,7 +1,9 @@
 package hyperloglog
 
 import (
+	"encoding/gob"
 	"errors"
+	"io"
 	"sort"
 )
 
@@ -235,4 +237,82 @@ func (h *HyperLogLogPlus) Count() uint64 {
 		}
 	}
 	return uint64(est)
+}
+
+// MarshalPlus writes HyperLogLogPlus to a writer.
+func (h *HyperLogLogPlus) MarshalPlus(w io.Writer) error {
+	enc := gob.NewEncoder(w)
+
+	if err := enc.Encode(h.reg); err != nil {
+		return err
+	}
+	if err := enc.Encode(h.p); err != nil {
+		return err
+	}
+	if err := enc.Encode(h.m); err != nil {
+		return err
+	}
+	if err := enc.Encode(h.sparse); err != nil {
+		return err
+	}
+
+	if !h.sparse {
+		return nil
+	}
+
+	if err := enc.Encode(h.tmpSet); err != nil {
+		return err
+	}
+
+	if err := enc.Encode(h.sparseList.Count); err != nil {
+		return err
+	}
+	if err := enc.Encode(h.sparseList.b); err != nil {
+		return err
+	}
+	if err := enc.Encode(h.sparseList.last); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// UnmarshalPlus reads HyperLogLogPlus from a reader.
+func UnmarshalPlus(r io.Reader) (*HyperLogLogPlus, error) {
+	dec := gob.NewDecoder(r)
+	var h HyperLogLogPlus
+
+	if err := dec.Decode(&h.reg); err != nil {
+		return nil, err
+	}
+	if err := dec.Decode(&h.p); err != nil {
+		return nil, err
+	}
+	if err := dec.Decode(&h.m); err != nil {
+		return nil, err
+	}
+	if err := dec.Decode(&h.sparse); err != nil {
+		return nil, err
+	}
+
+	if !h.sparse {
+		return &h, nil
+	}
+
+	if err := dec.Decode(&h.tmpSet); err != nil {
+		return nil, err
+	}
+
+	h.sparseList = &compressedList{}
+	if err := dec.Decode(&h.sparseList.Count); err != nil {
+		return nil, err
+	}
+	if err := dec.Decode(&h.sparseList.b); err != nil {
+		return nil, err
+	}
+	if err := dec.Decode(&h.sparseList.last); err != nil {
+		return nil, err
+	}
+
+	return &h, nil
 }

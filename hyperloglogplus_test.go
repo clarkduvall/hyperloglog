@@ -1,7 +1,9 @@
 package hyperloglog
 
 import (
+	"bytes"
 	"math"
+	"reflect"
 	"testing"
 )
 
@@ -421,5 +423,48 @@ func TestHLLPPError(t *testing.T) {
 	_, err = NewPlus(19)
 	if err == nil {
 		t.Error("precision 17 should return error")
+	}
+}
+
+func TestHLLPPMarshal(t *testing.T) {
+	h1, _ := NewPlus(8)
+	h1.Add(fakeHash64(0x00010fffffffffff))
+	h1.Add(fakeHash64(0x00020fffffffffff))
+	h1.Add(fakeHash64(0x00030fffffffffff))
+	h1.Add(fakeHash64(0x00040fffffffffff))
+	h1.Add(fakeHash64(0x00050fffffffffff))
+
+	var buf bytes.Buffer
+	err := h1.MarshalPlus(&buf)
+	if err != nil {
+		t.Error(err)
+	}
+
+	r := bytes.NewReader(buf.Bytes())
+	h2, err := UnmarshalPlus(r)
+	if err != nil {
+		t.Error(err)
+	}
+
+	if !reflect.DeepEqual(h1, h2) {
+		t.Error("unmarshaled result should match original")
+	}
+
+	// verify correct gob when sparse
+	h1.toNormal()
+	buf.Reset()
+	err = h1.MarshalPlus(&buf)
+	if err != nil {
+		t.Error(err)
+	}
+
+	r = bytes.NewReader(buf.Bytes())
+	h2, err = UnmarshalPlus(r)
+	if err != nil {
+		t.Error(err)
+	}
+
+	if !reflect.DeepEqual(h1, h2) {
+		t.Error("unmarshaled result should match original")
 	}
 }
