@@ -1,6 +1,10 @@
 package hyperloglog
 
-import "testing"
+import (
+	"bytes"
+	"reflect"
+	"testing"
+)
 
 type fakeHash32 uint32
 
@@ -170,5 +174,30 @@ func TestHLLError(t *testing.T) {
 	_, err = New(17)
 	if err == nil {
 		t.Error("precision 17 should return error")
+	}
+}
+
+func TestHLLPMarshal(t *testing.T) {
+	h1, _ := New(8)
+	h1.Add(fakeHash32(0x00010fff))
+	h1.Add(fakeHash32(0x00020fff))
+	h1.Add(fakeHash32(0x00030fff))
+	h1.Add(fakeHash32(0x00040fff))
+	h1.Add(fakeHash32(0x00050fff))
+
+	var buf bytes.Buffer
+	err := h1.Marshal(&buf)
+	if err != nil {
+		t.Error(err)
+	}
+
+	r := bytes.NewReader(buf.Bytes())
+	h2, err := Unmarshal(r)
+	if err != nil {
+		t.Error(err)
+	}
+
+	if !reflect.DeepEqual(h1, h2) {
+		t.Error("unmarshaled result should match original")
 	}
 }

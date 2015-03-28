@@ -12,7 +12,9 @@
 package hyperloglog
 
 import (
+	"encoding/gob"
 	"errors"
+	"io"
 	"math"
 )
 
@@ -80,4 +82,38 @@ func (h *HyperLogLog) Count() uint64 {
 		return uint64(est)
 	}
 	return uint64(-two32 * math.Log(1-est/two32))
+}
+
+// Marshal writes HyperLogLog to a writer.
+func (h *HyperLogLog) Marshal(w io.Writer) error {
+	enc := gob.NewEncoder(w)
+
+	if err := enc.Encode(h.reg); err != nil {
+		return err
+	}
+	if err := enc.Encode(h.m); err != nil {
+		return err
+	}
+	if err := enc.Encode(h.p); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// Unmarshal reads HyperLogLog from a reader.
+func Unmarshal(r io.Reader) (*HyperLogLog, error) {
+	dec := gob.NewDecoder(r)
+	var h HyperLogLog
+
+	if err := dec.Decode(&h.reg); err != nil {
+		return nil, err
+	}
+	if err := dec.Decode(&h.m); err != nil {
+		return nil, err
+	}
+	if err := dec.Decode(&h.p); err != nil {
+		return nil, err
+	}
+	return &h, nil
 }
