@@ -1,6 +1,9 @@
 package hyperloglog
 
-import "testing"
+import (
+	"bytes"
+	"testing"
+)
 
 type fakeHash32 uint32
 
@@ -170,5 +173,35 @@ func TestHLLError(t *testing.T) {
 	_, err = New(17)
 	if err == nil {
 		t.Error("precision 17 should return error")
+	}
+}
+
+func TestHLLBinaryMarshaler(t *testing.T) {
+	h, _ := New(16)
+
+	_, err := h.BinaryMarshaler()
+	if err != nil {
+		t.Error("cannot encode empty HLL")
+	}
+
+	h.Add(fakeHash32(0xffffffff))
+	byteRep, err := h.BinaryMarshaler()
+
+	p := h.p
+	m := h.m
+	reg := h.reg
+
+	h, _ = New(16)
+	h.BinaryUnmarshaler(byteRep)
+
+	if p != h.p {
+		t.Error("unmarshaled p not equal")
+	}
+	if m != h.m {
+		t.Error("unmarshaled m not equal")
+	}
+
+	if !bytes.Equal(h.reg, reg) {
+		t.Error("unmarshaled reg not equal")
 	}
 }

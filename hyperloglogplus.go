@@ -236,3 +236,33 @@ func (h *HyperLogLogPlus) Count() uint64 {
 	}
 	return uint64(est)
 }
+
+// BinaryMarshaler marshals the HyperLogLogPlus into binary form for storage
+func (h *HyperLogLogPlus) BinaryMarshaler() ([]byte, error) {
+	h.toNormal()
+	hll := HyperLogLog{
+		m:   h.m,
+		p:   h.p,
+		reg: h.reg,
+	}
+	return hll.BinaryMarshaler()
+}
+
+// BinaryUnmarshaler unmarshals binary data into this HyperLogLogPlus
+func (h *HyperLogLogPlus) BinaryUnmarshaler(data []byte) error {
+	hll := HyperLogLog{}
+	err := h.BinaryUnmarshaler(data)
+	if err != nil {
+		return err
+	}
+
+	h.p = hll.p
+	h.m = hll.m
+	h.reg = hll.reg
+
+	h.sparse = false
+	h.tmpSet = nil
+	h.sparseList = nil
+
+	return nil
+}

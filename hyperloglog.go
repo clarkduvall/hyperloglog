@@ -12,6 +12,8 @@
 package hyperloglog
 
 import (
+	"bytes"
+	"encoding/binary"
 	"errors"
 	"math"
 )
@@ -80,4 +82,50 @@ func (h *HyperLogLog) Count() uint64 {
 		return uint64(est)
 	}
 	return uint64(-two32 * math.Log(1-est/two32))
+}
+
+// BinaryMarshaler marshals the HyperLogLog into binary form for storage
+func (h *HyperLogLog) BinaryMarshaler() ([]byte, error) {
+	data := make([]byte, 5+h.m) // length of p + m + reg
+
+	buf := new(bytes.Buffer)
+
+	if err := binary.Write(buf, binary.LittleEndian, h.p); err != nil {
+		return nil, errors.New("cannot write p")
+	}
+	if err := binary.Write(buf, binary.LittleEndian, h.m); err != nil {
+		return nil, errors.New("cannot write m")
+	}
+	if err := binary.Write(buf, binary.LittleEndian, h.reg); err != nil {
+		return nil, errors.New("cannot write reg")
+	}
+
+	if buf.Len() != len(data) {
+		return nil, errors.New("buffer length not equal to expected length")
+	}
+
+	if _, err := buf.Read(data); err != nil {
+		return nil, errors.New("cannot read buffer to []byte")
+	}
+
+	return data, nil
+}
+
+// BinaryUnmarshaler unmarshals binary data into this HyperLogLog
+func (h *HyperLogLog) BinaryUnmarshaler(data []byte) error {
+	buf := bytes.NewReader(data)
+
+	if err := binary.Read(buf, binary.LittleEndian, &h.p); err != nil {
+		return errors.New("cannot read p")
+	}
+
+	if err := binary.Read(buf, binary.LittleEndian, &h.m); err != nil {
+		return errors.New("cannot read m")
+	}
+
+	if err := binary.Read(buf, binary.LittleEndian, &h.reg); err != nil {
+		return errors.New("cannot read reg")
+	}
+
+	return nil
 }
