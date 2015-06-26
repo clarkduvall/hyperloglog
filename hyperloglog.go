@@ -54,6 +54,11 @@ func (h *HyperLogLog) Add(item Hash32) {
 	}
 }
 
+// Sets a predefined state on HyperLogLog.
+func (h *HyperLogLog) SetRegisters(reg []uint8) {
+	h.reg = reg
+}
+
 // Merge takes another HyperLogLog and combines it with HyperLogLog h.
 func (h *HyperLogLog) Merge(other *HyperLogLog) error {
 	if h.p != other.p {
