@@ -12,6 +12,8 @@
 package hyperloglog
 
 import (
+	"bytes"
+	"encoding/gob"
 	"errors"
 	"math"
 )
@@ -80,4 +82,35 @@ func (h *HyperLogLog) Count() uint64 {
 		return uint64(est)
 	}
 	return uint64(-two32 * math.Log(1-est/two32))
+}
+
+// Encode HyperLogLog into a gob
+func (h *HyperLogLog) GobEncode() ([]byte, error) {
+	buf := bytes.Buffer{}
+	enc := gob.NewEncoder(&buf)
+	if err := enc.Encode(h.reg); err != nil {
+		return nil, err
+	}
+	if err := enc.Encode(h.m); err != nil {
+		return nil, err
+	}
+	if err := enc.Encode(h.p); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
+}
+
+// Decode gob into a HyperLogLog structure
+func (h *HyperLogLog) GobDecode(b []byte) error {
+	dec := gob.NewDecoder(bytes.NewBuffer(b))
+	if err := dec.Decode(&h.reg); err != nil {
+		return err
+	}
+	if err := dec.Decode(&h.m); err != nil {
+		return err
+	}
+	if err := dec.Decode(&h.p); err != nil {
+		return err
+	}
+	return nil
 }

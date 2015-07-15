@@ -1,6 +1,11 @@
 package hyperloglog
 
-import "testing"
+import (
+	"bytes"
+	"encoding/gob"
+	"reflect"
+	"testing"
+)
 
 type fakeHash32 uint32
 
@@ -170,5 +175,30 @@ func TestHLLError(t *testing.T) {
 	_, err = New(17)
 	if err == nil {
 		t.Error("precision 17 should return error")
+	}
+}
+
+func TestHLLGob(t *testing.T) {
+	var c1, c2 struct {
+		HLL   *HyperLogLog
+		Count int
+	}
+	c1.HLL, _ = New(8)
+	for _, h := range []fakeHash32{0x10fff, 0x20fff, 0x30fff, 0x40fff, 0x50fff} {
+		c1.HLL.Add(h)
+		c1.Count++
+	}
+
+	var buf bytes.Buffer
+
+	if err := gob.NewEncoder(&buf).Encode(&c1); err != nil {
+		t.Error(err)
+	}
+	if err := gob.NewDecoder(&buf).Decode(&c2); err != nil {
+		t.Error(err)
+	}
+
+	if !reflect.DeepEqual(c1, c2) {
+		t.Error("unmarshaled structure differs")
 	}
 }
