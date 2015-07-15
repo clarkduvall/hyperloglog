@@ -1,6 +1,8 @@
 package hyperloglog
 
 import (
+	"bytes"
+	"encoding/gob"
 	"errors"
 	"sort"
 )
@@ -235,4 +237,70 @@ func (h *HyperLogLogPlus) Count() uint64 {
 		}
 	}
 	return uint64(est)
+}
+
+// Encode HyperLogLogPlus into a gob
+func (h *HyperLogLogPlus) GobEncode() ([]byte, error) {
+	buf := bytes.Buffer{}
+	enc := gob.NewEncoder(&buf)
+	if err := enc.Encode(h.reg); err != nil {
+		return nil, err
+	}
+	if err := enc.Encode(h.m); err != nil {
+		return nil, err
+	}
+	if err := enc.Encode(h.p); err != nil {
+		return nil, err
+	}
+	if err := enc.Encode(h.sparse); err != nil {
+		return nil, err
+	}
+	if h.sparse {
+		if err := enc.Encode(h.tmpSet); err != nil {
+			return nil, err
+		}
+		if err := enc.Encode(h.sparseList.Count); err != nil {
+			return nil, err
+		}
+		if err := enc.Encode(h.sparseList.b); err != nil {
+			return nil, err
+		}
+		if err := enc.Encode(h.sparseList.last); err != nil {
+			return nil, err
+		}
+	}
+	return buf.Bytes(), nil
+}
+
+// Decode gob into a HyperLogLogPlus structure
+func (h *HyperLogLogPlus) GobDecode(b []byte) error {
+	dec := gob.NewDecoder(bytes.NewBuffer(b))
+	if err := dec.Decode(&h.reg); err != nil {
+		return err
+	}
+	if err := dec.Decode(&h.m); err != nil {
+		return err
+	}
+	if err := dec.Decode(&h.p); err != nil {
+		return err
+	}
+	if err := dec.Decode(&h.sparse); err != nil {
+		return err
+	}
+	if h.sparse {
+		if err := dec.Decode(&h.tmpSet); err != nil {
+			return err
+		}
+		h.sparseList = &compressedList{}
+		if err := dec.Decode(&h.sparseList.Count); err != nil {
+			return err
+		}
+		if err := dec.Decode(&h.sparseList.b); err != nil {
+			return err
+		}
+		if err := dec.Decode(&h.sparseList.last); err != nil {
+			return err
+		}
+	}
+	return nil
 }

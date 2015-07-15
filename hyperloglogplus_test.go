@@ -1,7 +1,10 @@
 package hyperloglog
 
 import (
+	"bytes"
+	"encoding/gob"
 	"math"
+	"reflect"
 	"testing"
 )
 
@@ -421,5 +424,33 @@ func TestHLLPPError(t *testing.T) {
 	_, err = NewPlus(19)
 	if err == nil {
 		t.Error("precision 17 should return error")
+	}
+}
+
+func TestHLLPPGob(t *testing.T) {
+	var c1, c2 struct {
+		HLL   *HyperLogLogPlus
+		Count int
+	}
+	c1.HLL, _ = NewPlus(8)
+	for _, h := range []fakeHash64{0x10fff, 0x20fff, 0x30fff, 0x40fff, 0x50fff} {
+		c1.HLL.Add(h)
+		c1.Count++
+	}
+
+	var buf bytes.Buffer
+
+	if err := gob.NewEncoder(&buf).Encode(&c1); err != nil {
+		t.Error(err)
+	}
+	if err := gob.NewDecoder(&buf).Decode(&c2); err != nil {
+		t.Error(err)
+	}
+
+	if c1.HLL.Count() != c2.HLL.Count() {
+		t.Error("HLL count differs")
+	}
+	if !reflect.DeepEqual(c1, c2) {
+		t.Error("unmarshaled structure differs")
 	}
 }
