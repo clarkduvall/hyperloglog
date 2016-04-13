@@ -140,13 +140,7 @@ func (h *HyperLogLogPlus) Add(item Hash64) {
 	x := item.Sum64()
 	if h.sparse {
 		h.tmpSet.Add(h.encodeHash(x))
-
-		if uint32(len(h.tmpSet))*100 > h.m {
-			h.mergeSparse()
-			if uint32(h.sparseList.Len()) > h.m {
-				h.toNormal()
-			}
-		}
+		h.toNormalIfSparseTooBig()
 	} else {
 		i := eb64(x, 64, 64-h.p) // {x63,...,x64-p}
 		w := x<<h.p | 1<<(h.p-1) // {x63-p,...,x0}
@@ -171,12 +165,7 @@ func (h *HyperLogLogPlus) Merge(other *HyperLogLogPlus) error {
 		for iter := other.sparseList.Iter(); iter.HasNext(); {
 			h.tmpSet.Add(iter.Next())
 		}
-		if uint32(len(h.tmpSet))*100 > h.m {
-			h.mergeSparse()
-			if uint32(h.sparseList.Len()) > h.m {
-				h.toNormal()
-			}
-		}
+		h.toNormalIfSparseTooBig()
 		return nil
 	}
 
@@ -206,6 +195,15 @@ func (h *HyperLogLogPlus) Merge(other *HyperLogLogPlus) error {
 		}
 	}
 	return nil
+}
+
+func (h *HyperLogLogPlus) toNormalIfSparseTooBig() {
+	if uint32(len(h.tmpSet))*100 > h.m {
+		h.mergeSparse()
+		if uint32(h.sparseList.Len()) > h.m {
+			h.toNormal()
+		}
+	}
 }
 
 // Estimates the bias using empirically determined values.
