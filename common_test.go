@@ -251,3 +251,11 @@ func TestAlpha(t *testing.T) {
 		t.Error(v)
 	}
 }
+
+func TestCalculateEstimate(t *testing.T) {
+	// Test values between 31 and 64 to make sure bit shifting is using 64 bits.
+	v := calculateEstimate([]uint8{33, 0, 63, 12, 62, 5, 53})
+	if v < 0.00001 {
+		t.Error(v)
+	}
+}
