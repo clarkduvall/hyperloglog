@@ -111,7 +111,7 @@ func countZeros(s []uint8) uint32 {
 func calculateEstimate(s []uint8) float64 {
 	sum := 0.0
 	for _, val := range s {
-		sum += 1.0 / float64(uint32(1)<<val)
+		sum += 1.0 / float64(uint64(1)<<val)
 	}
 
 	m := uint32(len(s))
