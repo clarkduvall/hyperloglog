@@ -140,13 +140,7 @@ func (h *HyperLogLogPlus) Add(item Hash64) {
 	x := item.Sum64()
 	if h.sparse {
 		h.tmpSet.Add(h.encodeHash(x))
-
-		if uint32(len(h.tmpSet))*100 > h.m {
-			h.mergeSparse()
-			if uint32(h.sparseList.Len()) > h.m {
-				h.toNormal()
-			}
-		}
+		h.toNormalIfSparseTooBig()
 	} else {
 		i := eb64(x, 64, 64-h.p) // {x63,...,x64-p}
 		w := x<<h.p | 1<<(h.p-1) // {x63-p,...,x0}
@@ -159,11 +153,20 @@ func (h *HyperLogLogPlus) Add(item Hash64) {
 }
 
 // Merge takes another HyperLogLogPlus and combines it with HyperLogLogPlus h.
-// If HyperLogLogPlus h is using the sparse representation, it will be converted
-// to the normal representation.
 func (h *HyperLogLogPlus) Merge(other *HyperLogLogPlus) error {
 	if h.p != other.p {
 		return errors.New("precisions must be equal")
+	}
+
+	if h.sparse && other.sparse {
+		for k := range other.tmpSet {
+			h.tmpSet.Add(k)
+		}
+		for iter := other.sparseList.Iter(); iter.HasNext(); {
+			h.tmpSet.Add(iter.Next())
+		}
+		h.toNormalIfSparseTooBig()
+		return nil
 	}
 
 	if h.sparse {
@@ -192,6 +195,15 @@ func (h *HyperLogLogPlus) Merge(other *HyperLogLogPlus) error {
 		}
 	}
 	return nil
+}
+
+func (h *HyperLogLogPlus) toNormalIfSparseTooBig() {
+	if uint32(len(h.tmpSet))*100 > h.m {
+		h.mergeSparse()
+		if uint32(h.sparseList.Len()) > h.m {
+			h.toNormal()
+		}
+	}
 }
 
 // Estimates the bias using empirically determined values.
@@ -291,7 +303,7 @@ func (h *HyperLogLogPlus) GobDecode(b []byte) error {
 		if err := dec.Decode(&h.tmpSet); err != nil {
 			return err
 		}
-		h.sparseList = &compressedList{}
+		h.sparseList = newCompressedList(int(h.m))
 		if err := dec.Decode(&h.sparseList.Count); err != nil {
 			return err
 		}

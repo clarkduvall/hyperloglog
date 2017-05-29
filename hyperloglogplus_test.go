@@ -178,8 +178,8 @@ func TestHLLMergeSparse(t *testing.T) {
 		t.Error(n)
 	}
 
-	if h2.sparse {
-		t.Error("Merge should convert to normal")
+	if !h2.sparse {
+		t.Error("Merge should not convert to normal")
 	}
 
 	if !h.sparse {
@@ -226,6 +226,51 @@ func TestHLLMergeNormal(t *testing.T) {
 	n := h2.Count()
 	if n != 5 {
 		t.Error(n)
+	}
+
+	h2.Merge(h)
+	n = h2.Count()
+	if n != 5 {
+		t.Error(n)
+	}
+
+	h.Add(fakeHash64(0x00060fffffffffff))
+	h.Add(fakeHash64(0x00070fffffffffff))
+	h.Add(fakeHash64(0x00080fffffffffff))
+	h.Add(fakeHash64(0x00090fffffffffff))
+	h.Add(fakeHash64(0x000a0fffffffffff))
+	h.Add(fakeHash64(0x000a0fffffffffff))
+	n = h.Count()
+	if n != 10 {
+		t.Error(n)
+	}
+
+	h2.Merge(h)
+	n = h2.Count()
+	if n != 10 {
+		t.Error(n)
+	}
+}
+
+func TestHLLMergeMixed(t *testing.T) {
+	h, _ := NewPlus(16)
+	h.Add(fakeHash64(0x00010fffffffffff))
+	h.Add(fakeHash64(0x00020fffffffffff))
+	h.Add(fakeHash64(0x00030fffffffffff))
+	h.Add(fakeHash64(0x00040fffffffffff))
+	h.Add(fakeHash64(0x00050fffffffffff))
+	h.Add(fakeHash64(0x00050fffffffffff))
+
+	h2, _ := NewPlus(16)
+	h2.toNormal()
+	h2.Merge(h)
+	n := h2.Count()
+	if n != 5 {
+		t.Error(n)
+	}
+
+	if !h.sparse {
+		t.Error("Merge should not modify argument")
 	}
 
 	h2.Merge(h)
