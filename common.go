@@ -81,13 +81,13 @@ func clz64(x uint64) uint8 {
 	return c
 }
 
-// Extract bits from uint32 using LSB 0 numbering, including lo
+// Extract bits from uint32 using LSB 0 numbering, including lo.
 func eb32(bits uint32, hi uint8, lo uint8) uint32 {
 	m := uint32(((1 << (hi - lo)) - 1) << lo)
 	return (bits & m) >> lo
 }
 
-// Extract bits from uint64 using LSB 0 numbering, including lo
+// Extract bits from uint64 using LSB 0 numbering, including lo.
 func eb64(bits uint64, hi uint8, lo uint8) uint64 {
 	m := uint64(((1 << (hi - lo)) - 1) << lo)
 	return (bits & m) >> lo
