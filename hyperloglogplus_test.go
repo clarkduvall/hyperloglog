@@ -12,6 +12,13 @@ type fakeHash64 uint64
 
 func (f fakeHash64) Sum64() uint64 { return uint64(f) }
 
+func abs(x int64) int64 {
+	if x < 0 {
+		return -x
+	}
+	return x
+}
+
 func TestHLLPPAddNoSparse(t *testing.T) {
 	h, _ := NewPlus(16)
 	h.toNormal()
@@ -121,6 +128,19 @@ func TestHLLPPEstimateBias(t *testing.T) {
 	h, _ := NewPlus(4)
 	b := h.estimateBias(14.0988)
 	if math.Abs(b-7.5988) > 0.00001 {
+		t.Error(b)
+	}
+
+	// 10 is less than the first entry in the estimate table for p=4.
+	biasTable := biasData[0]
+	b = h.estimateBias(10)
+	if math.Abs(b-biasTable[0]) > 0.00001 {
+		t.Error(b)
+	}
+
+	// 80 is greater than the first entry in the estimate table for p-4.
+	b = h.estimateBias(80)
+	if math.Abs(b-biasTable[len(biasTable)-1]) > 0.00001 {
 		t.Error(b)
 	}
 
@@ -294,6 +314,29 @@ func TestHLLMergeMixed(t *testing.T) {
 	n = h2.Count()
 	if n != 10 {
 		t.Error(n)
+	}
+}
+
+func TestHLLMergeMixedConvertToNormal(t *testing.T) {
+	h, _ := NewPlus(16)
+	h.Add(fakeHash64(0x00010fffffffffff))
+	h.Add(fakeHash64(0x00020fffffffffff))
+	h.Add(fakeHash64(0x00030fffffffffff))
+	h.Add(fakeHash64(0x00040fffffffffff))
+	h.Add(fakeHash64(0x00050fffffffffff))
+	h.Add(fakeHash64(0x00050fffffffffff))
+	// h is normal, h2 should be converted too.
+	h.toNormal()
+
+	h2, _ := NewPlus(16)
+	h2.Merge(h)
+	n := h2.Count()
+	if n != 5 {
+		t.Error(n)
+	}
+
+	if h2.sparse {
+		t.Error("Merge should convert to normal")
 	}
 }
 
@@ -497,5 +540,37 @@ func TestHLLPPGob(t *testing.T) {
 	}
 	if !reflect.DeepEqual(c1, c2) {
 		t.Error("unmarshaled structure differs")
+	}
+}
+
+func TestHLLPPEstimateBiasCount(t *testing.T) {
+	h, _ := NewPlus(4)
+	h.toNormal()
+
+	// Adding ten entries in different buckets for p=4 skips linear counting.
+	for i := 0; i < 10; i++ {
+		h.Add(fakeHash64(i<<60 + 0xfffffffffffffff))
+	}
+	c := h.Count()
+	// Count should be at most 1 off.
+	if abs(10-int64(c)) > 1 {
+		t.Error(c)
+	}
+}
+
+func TestHLLPPToNormalWhenSparseIsTooBig(t *testing.T) {
+	h, _ := NewPlus(4)
+
+	for i := 0; i < 16; i++ {
+		h.Add(fakeHash64(1 << uint(i)))
+	}
+
+	if !h.sparse {
+		t.Error("h should still be sparse")
+	}
+
+	h.Add(fakeHash64(1 << 16))
+	if h.sparse {
+		t.Error("h should be converted to normal")
 	}
 }
