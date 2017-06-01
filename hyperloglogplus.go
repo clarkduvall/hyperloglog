@@ -56,6 +56,10 @@ func (h *HyperLogLogPlus) decodeHash(k uint32) (uint32, uint8) {
 
 // Merge tmpSet and sparseList in the sparse representation.
 func (h *HyperLogLogPlus) mergeSparse() {
+	if len(h.tmpSet) == 0 {
+		return
+	}
+
 	keys := make(sortableSlice, 0, len(h.tmpSet))
 	for k := range h.tmpSet {
 		keys = append(keys, k)
@@ -94,6 +98,17 @@ func (h *HyperLogLogPlus) mergeSparse() {
 // NewPlus returns a new initialized HyperLogLogPlus that uses the HyperLogLog++
 // algorithm.
 func NewPlus(precision uint8) (*HyperLogLogPlus, error) {
+	h, err := createPlus(precision)
+	if err != nil {
+		return nil, err
+	}
+	h.Clear()
+	return h, nil
+}
+
+// createPlus returns a new, empty HyperLogLogPlus w/o inititalizing internal
+// buffers, for use as a deserialization target.
+func createPlus(precision uint8) (*HyperLogLogPlus, error) {
 	if precision > 18 || precision < 4 {
 		return nil, errors.New("precision must be between 4 and 18")
 	}
@@ -101,9 +116,6 @@ func NewPlus(precision uint8) (*HyperLogLogPlus, error) {
 	h := &HyperLogLogPlus{}
 	h.p = precision
 	h.m = 1 << precision
-	h.sparse = true
-	h.tmpSet = set{}
-	h.sparseList = newCompressedList(int(h.m))
 	return h, nil
 }
 
@@ -118,9 +130,7 @@ func (h *HyperLogLogPlus) Clear() {
 // Converts HyperLogLogPlus h to the normal representation from the sparse
 // representation.
 func (h *HyperLogLogPlus) toNormal() {
-	if len(h.tmpSet) > 0 {
-		h.mergeSparse()
-	}
+	h.mergeSparse()
 
 	h.reg = make([]uint8, h.m)
 	for iter := h.sparseList.Iter(); iter.HasNext(); {
@@ -316,4 +326,68 @@ func (h *HyperLogLogPlus) GobDecode(b []byte) error {
 		}
 	}
 	return nil
+}
+
+// Use if you want to do your own serialization of HyperLogLogPlus data.
+// Note this is intended for performance-sensitive cases and depends on
+// HyperLogLogPlus's internal data structure. It may change in the future.
+type PlusEncodable interface {
+	SetP(uint8)
+	SetB([]uint8)
+	SetSparse(bool)
+	SetCount(uint32)
+	SetLast(uint32)
+}
+
+// Encode stores internal values into serializable dest.
+// For performance reasons, pointer values are NOT copied.
+// This means you data will be corrupted if you change this hll before copying
+// out the resulting data.
+func (h *HyperLogLogPlus) Encode(dest PlusEncodable) {
+	h.mergeSparse()
+
+	dest.SetP(h.p)
+	dest.SetSparse(h.sparse)
+	if h.sparse {
+		dest.SetCount(h.sparseList.Count)
+		dest.SetB(h.sparseList.b)
+		dest.SetLast(h.sparseList.last)
+	} else {
+		dest.SetB(h.reg)
+	}
+}
+
+type PlusDecodable interface {
+	GetP() uint8
+	GetB() []uint8
+	GetSparse() bool
+	GetCount() uint32
+	GetLast() uint32
+}
+
+// DecodePlus returns a new HyperLogLogPlus with values from src.
+// For performance reasons, pointer values are NOT copied.
+// This means that the maps and slices in src must not be re-used.
+func DecodePlus(src PlusDecodable) (*HyperLogLogPlus, error) {
+	h, err := createPlus(src.GetP())
+	if err != nil {
+		return nil, err
+	}
+	h.sparse = src.GetSparse()
+
+	if h.sparse {
+		h.tmpSet = set{}
+
+		h.sparseList = &compressedList{
+			Count: src.GetCount(),
+			b:     src.GetB(),
+			last:  src.GetLast(),
+		}
+		if h.sparseList.b == nil {
+			h.sparseList.b = make(variableLengthList, 0, h.m)
+		}
+	} else {
+		h.reg = src.GetB()
+	}
+	return h, nil
 }
