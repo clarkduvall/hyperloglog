@@ -574,3 +574,84 @@ func TestHLLPPToNormalWhenSparseIsTooBig(t *testing.T) {
 		t.Error("h should be converted to normal")
 	}
 }
+
+type encoded struct {
+	p      uint8
+	b      []uint8
+	sparse bool
+	count  uint32
+	last   uint32
+}
+
+func (e *encoded) SetP(v uint8) {
+	e.p = v
+}
+
+func (e *encoded) SetB(v []uint8) {
+	e.b = v
+}
+
+func (e *encoded) SetSparse(v bool) {
+	e.sparse = v
+}
+
+func (e *encoded) SetCount(v uint32) {
+	e.count = v
+}
+
+func (e *encoded) SetLast(v uint32) {
+	e.last = v
+}
+
+func (e *encoded) GetP() uint8 {
+	return e.p
+}
+
+func (e *encoded) GetB() []uint8 {
+	return e.b
+}
+
+func (e *encoded) GetSparse() bool {
+	return e.sparse
+}
+
+func (e *encoded) GetCount() uint32 {
+	return e.count
+}
+
+func (e *encoded) GetLast() uint32 {
+	return e.last
+}
+
+func TestEncodeDecode(t *testing.T) {
+	h1, err := NewPlus(8)
+	if err != nil {
+		t.Error(err)
+	}
+	for _, h := range []fakeHash64{0x10fff, 0x20fff, 0x30fff, 0x40fff, 0x50fff} {
+		h1.Add(h)
+	}
+
+	e := &encoded{}
+	h1.Encode(e)
+	h2, err := DecodePlus(e)
+	if err != nil {
+		t.Error(err)
+	}
+
+	if !reflect.DeepEqual(h1, h2) {
+		t.Error("decoded structure differs")
+	}
+
+	h1.toNormal()
+	h1.Encode(e)
+
+	h2, err = DecodePlus(e)
+	if err != nil {
+		t.Error(err)
+	}
+
+	if !reflect.DeepEqual(h1, h2) {
+		t.Error("decoded structure differs")
+	}
+}
