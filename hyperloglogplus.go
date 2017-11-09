@@ -235,7 +235,11 @@ func (h *HyperLogLogPlus) estimateBias(est float64) float64 {
 func (h *HyperLogLogPlus) Count() uint64 {
 	if h.sparse {
 		h.mergeSparse()
-		return uint64(linearCounting(mPrime, mPrime-uint32(h.sparseList.Count)))
+		if uint32(h.sparseList.Len()) > h.m {
+			h.toNormal()
+		} else {
+			return uint64(linearCounting(mPrime, mPrime-uint32(h.sparseList.Count)))
+		}
 	}
 
 	est := calculateEstimate(h.reg)
