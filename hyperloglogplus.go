@@ -55,6 +55,7 @@ func (h *HyperLogLogPlus) decodeHash(k uint32) (uint32, uint8) {
 }
 
 // Merge tmpSet and sparseList in the sparse representation.
+// Converts to normal if the sparse list is too large
 func (h *HyperLogLogPlus) mergeSparse() {
 	keys := make(sortableSlice, 0, len(h.tmpSet))
 	for k := range h.tmpSet {
@@ -89,6 +90,17 @@ func (h *HyperLogLogPlus) mergeSparse() {
 
 	h.sparseList = newList
 	h.tmpSet = set{}
+
+	if uint32(h.sparseList.Len()) > h.m {
+		h.toNormal()
+	}
+}
+
+func (h *HyperLogLogPlus) mergeSparseAndToNormal() {
+	h.mergeSparse()
+	if h.sparse {
+		h.toNormal()
+	}
 }
 
 // NewPlus returns a new initialized HyperLogLogPlus that uses the HyperLogLog++
@@ -118,10 +130,6 @@ func (h *HyperLogLogPlus) Clear() {
 // Converts HyperLogLogPlus h to the normal representation from the sparse
 // representation.
 func (h *HyperLogLogPlus) toNormal() {
-	if len(h.tmpSet) > 0 {
-		h.mergeSparse()
-	}
-
 	h.reg = make([]uint8, h.m)
 	for iter := h.sparseList.Iter(); iter.HasNext(); {
 		i, r := h.decodeHash(iter.Next())
@@ -140,7 +148,7 @@ func (h *HyperLogLogPlus) Add(item Hash64) {
 	x := item.Sum64()
 	if h.sparse {
 		h.tmpSet.Add(h.encodeHash(x))
-		h.maybeToNormal()
+		h.maybeMerge()
 	} else {
 		i := eb64(x, 64, 64-h.p) // {x63,...,x64-p}
 		w := x<<h.p | 1<<(h.p-1) // {x63-p,...,x0}
@@ -165,12 +173,12 @@ func (h *HyperLogLogPlus) Merge(other *HyperLogLogPlus) error {
 		for iter := other.sparseList.Iter(); iter.HasNext(); {
 			h.tmpSet.Add(iter.Next())
 		}
-		h.maybeToNormal()
+		h.maybeMerge()
 		return nil
 	}
 
 	if h.sparse {
-		h.toNormal()
+		h.mergeSparseAndToNormal()
 	}
 
 	if other.sparse {
@@ -197,13 +205,10 @@ func (h *HyperLogLogPlus) Merge(other *HyperLogLogPlus) error {
 	return nil
 }
 
-// Converts to normal if the sparse list is too large.
-func (h *HyperLogLogPlus) maybeToNormal() {
+// Merges tmpSet if it exceeds the threshold
+func (h *HyperLogLogPlus) maybeMerge() {
 	if uint32(len(h.tmpSet))*100 > h.m {
 		h.mergeSparse()
-		if uint32(h.sparseList.Len()) > h.m {
-			h.toNormal()
-		}
 	}
 }
 
@@ -235,11 +240,10 @@ func (h *HyperLogLogPlus) estimateBias(est float64) float64 {
 func (h *HyperLogLogPlus) Count() uint64 {
 	if h.sparse {
 		h.mergeSparse()
-		if uint32(h.sparseList.Len()) > h.m {
-			h.toNormal()
-		} else {
-			return uint64(linearCounting(mPrime, mPrime-uint32(h.sparseList.Count)))
-		}
+	}
+
+	if h.sparse {
+		return uint64(linearCounting(mPrime, mPrime-uint32(h.sparseList.Count)))
 	}
 
 	est := calculateEstimate(h.reg)
