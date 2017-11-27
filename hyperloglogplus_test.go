@@ -86,7 +86,7 @@ func TestHLLPPPrecisionNoSparse(t *testing.T) {
 func TestHLLPPToNormal(t *testing.T) {
 	h, _ := NewPlus(16)
 	h.Add(fakeHash64(0x00010fffffffffff))
-	h.toNormal()
+	h.mergeSparseAndToNormal()
 	c := h.Count()
 	if c != 1 {
 		t.Error(c)
@@ -103,8 +103,7 @@ func TestHLLPPToNormal(t *testing.T) {
 	h.Add(fakeHash64(0x0003000000000001))
 	h.Add(fakeHash64(0xff03700000000000))
 	h.Add(fakeHash64(0xff03080000000000))
-	h.mergeSparse()
-	h.toNormal()
+	h.mergeSparseAndToNormal()
 
 	n := h.reg[1]
 	if n != 5 {
@@ -326,7 +325,7 @@ func TestHLLMergeMixedConvertToNormal(t *testing.T) {
 	h.Add(fakeHash64(0x00050fffffffffff))
 	h.Add(fakeHash64(0x00050fffffffffff))
 	// h is normal, h2 should be converted too.
-	h.toNormal()
+	h.mergeSparseAndToNormal()
 
 	h2, _ := NewPlus(16)
 	h2.Merge(h)
@@ -570,6 +569,27 @@ func TestHLLPPToNormalWhenSparseIsTooBig(t *testing.T) {
 	}
 
 	h.Add(fakeHash64(1 << 16))
+	if h.sparse {
+		t.Error("h should be converted to normal")
+	}
+}
+
+func TestHLLPPToNormalWhenCountIsCalledOften(t *testing.T) {
+	h, _ := NewPlus(7)
+
+	for i := 0; i < 128; i++ {
+		h.Add(fakeHash64(i << 39))
+		h.Count()
+	}
+
+	h.Add(fakeHash64(1))
+
+	if !h.sparse {
+		t.Error("h should still be sparse")
+	}
+
+	h.Count()
+
 	if h.sparse {
 		t.Error("h should be converted to normal")
 	}
