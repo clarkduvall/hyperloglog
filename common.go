@@ -18,7 +18,13 @@ func (p sortableSlice) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
 
 type set map[uint32]bool
 
-func (s set) Add(i uint32) { s[i] = true }
+func (s set) Add(i uint32) bool {
+	if s[i] {
+		return false
+	}
+	s[i] = true
+	return true
+}
 
 func alpha(m uint32) float64 {
 	if m == 16 {
