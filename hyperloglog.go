@@ -114,3 +114,14 @@ func (h *HyperLogLog) GobDecode(b []byte) error {
 	}
 	return nil
 }
+
+func Load(precision uint8, data []byte) (*HyperLogLog, error) {
+	h, err := New(precision)
+
+	if err != nil {
+		return nil, err
+	}
+
+	h.reg = data
+	return h, nil
+}
