@@ -100,7 +100,7 @@ func (h *HyperLogLog) GobEncode() ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-// Decode gob into a HyperLogLog structure
+// GobDecode decodes gob into a HyperLogLog structure
 func (h *HyperLogLog) GobDecode(b []byte) error {
 	dec := gob.NewDecoder(bytes.NewBuffer(b))
 	if err := dec.Decode(&h.reg); err != nil {
