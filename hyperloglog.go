@@ -45,15 +45,18 @@ func (h *HyperLogLog) Clear() {
 }
 
 // Add adds a new item to HyperLogLog h.
-func (h *HyperLogLog) Add(item Hash32) {
+func (h *HyperLogLog) Add(item Hash32) bool {
 	x := item.Sum32()
 	i := eb32(x, 32, 32-h.p) // {x31,...,x32-p}
 	w := x<<h.p | 1<<(h.p-1) // {x32-p,...,x0}
 
+	changed := false
 	zeroBits := clz32(w) + 1
 	if zeroBits > h.reg[i] {
 		h.reg[i] = zeroBits
+		changed = true
 	}
+	return changed
 }
 
 // Merge takes another HyperLogLog and combines it with HyperLogLog h.

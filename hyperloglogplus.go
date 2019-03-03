@@ -144,11 +144,14 @@ func (h *HyperLogLogPlus) toNormal() {
 }
 
 // Add adds a new item to HyperLogLogPlus h.
-func (h *HyperLogLogPlus) Add(item Hash64) {
+func (h *HyperLogLogPlus) Add(item Hash64) bool {
 	x := item.Sum64()
+	changed := false
 	if h.sparse {
-		h.tmpSet.Add(h.encodeHash(x))
-		h.maybeMerge()
+		changed = h.tmpSet.Add(h.encodeHash(x))
+		if changed {
+			h.maybeMerge()
+		}
 	} else {
 		i := eb64(x, 64, 64-h.p) // {x63,...,x64-p}
 		w := x<<h.p | 1<<(h.p-1) // {x63-p,...,x0}
@@ -156,8 +159,10 @@ func (h *HyperLogLogPlus) Add(item Hash64) {
 		zeroBits := clz64(w) + 1
 		if zeroBits > h.reg[i] {
 			h.reg[i] = zeroBits
+			changed = true
 		}
 	}
+	return changed
 }
 
 // Merge takes another HyperLogLogPlus and combines it with HyperLogLogPlus h.
