@@ -53,7 +53,7 @@ func TestHLLPPAddNoSparse(t *testing.T) {
 		t.Error(n)
 	}
 
-	h.Add(fakeHash64(0xff03080000000000))
+	h.AddUInt64(fakeHash64(0xff03080000000000).Sum64())
 	n = h.reg[0xff03]
 	if n != 5 {
 		t.Error(n)

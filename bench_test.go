@@ -23,7 +23,7 @@ func hash64(s string) hash.Hash64 {
 
 func randStr(n int) string {
 	i := rand.Uint32()
-	return fmt.Sprintf("a%s %s", i, n)
+	return fmt.Sprintf("a%d %d", i, n)
 }
 
 func benchmark(precision uint8, n int) {
